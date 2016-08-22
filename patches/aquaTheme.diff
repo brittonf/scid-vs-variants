@@ -1,0 +1,15 @@
+./Contents/Frameworks/Tk.framework/Resources/Scripts/ttk/aquaTheme.tcl
+./Contents/Frameworks/Tk.framework/Versions/8.5/Resources/Scripts/ttk/aquaTheme.tcl
+./Contents/Frameworks/Tk.framework/Versions/Current/Resources/Scripts/ttk/aquaTheme.tcl
+
+--- aquaTheme.tcl	2013-06-19 07:46:30.000000000 +1000
++++ aquaTheme.tcl.sa	2014-11-30 15:23:28.000000000 +1000
+@@ -33,7 +33,7 @@
+ 	ttk::style configure Toolbutton -padding 4
+ 
+ 	ttk::style configure TNotebook -tabmargins {10 0} -tabposition n
+-	ttk::style configure TNotebook -padding {18 8 18 17}
++	ttk::style configure TNotebook -padding {5 5 5 5}
+ 	ttk::style configure TNotebook.Tab -padding {12 3 12 2}
+ 
+ 	# Combobox:

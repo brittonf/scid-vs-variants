@@ -1,0 +1,43 @@
+<!doctype linuxdoc system>
+<article>
+<title>Phalanx
+<newline>
+<toc>
+<verb></verb>
+
+<sect> Main <p>
+
+Phalanx is an old, popular chess engine, with an interesting history.
+</p>
+<p>Since 2014, Phalanx is now under active coding by the original owner, Dusan Dobes</p>
+<p><url url="https://phalanx.svn.sourceforge.net" name="Phalanx Homepage"></p>
+<p>
+The latest code can be obtained from subversion with
+<ul><li><bf>svn co https://phalanx.svn.sourceforge.net/svnroot/phalanx</bf></ul>
+</p>
+
+<bf> Quotes</bf>
+<descrip>
+<tag/<url url="http://www.chessbase.com/support/support.asp?pid=100" name="Chessbase.com, May 28th, 2000">/
+PhalanxXXII was the most interesting of the seven engines (in my opinion). I
+was looking forward to a wild sacrificial game against it (based on the
+engine's description at the ChessBase GmbH site), but Phalanx fooled me. I
+played a couple of games against it immediately after replaying a couple of
+Steinitz' games from Reti's book Masters of the Chessboard. Steinitz was the
+master of the pawn push. He often drove his pawns relentlessly forward to deny
+space to his opponent. To my surprise (I might even say "shock"), Phalanx does
+the same thing. Control of space is evidently given high priority in its
+evaluation algorithm. As I played against Phalanx, it seemed intent on
+throttling me ("python-like", to use the hoary old stereotype). I give this
+program high marks for positional play -- the pawn pushes it made were all
+strong ones, and it never gave my Knights a chance to exploit any holes it may
+have created. Despite the relatively low rating range in "Handicap and fun"
+mode (1150-1950), Phalanx was without question the most unique and interesting
+of the seven engines and I'm looking forward to my next game against it.
+
+<tag/<url url="http://linux.about.com/cs/linux101/g/phalanx.htm" name="Juergen Haas, About.com">/
+Definition: phalanx: Chess playing program. Phalanx is a simple chess playing program of conventional design. It is xboard compatible. The main aim is to write a slow thinker with a lot of chess specific knowledge. Current version plays risky, active chess and shows quite good tactical performance. 
+</descrip>
+
+
+</article>

@@ -1,0 +1,1799 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<title>
+Scid vs. PC Programmer's Reference
+</title>
+<style type="text/css">
+!--
+  body { background: #ffffff; }
+  h1, h2, h3, h4, h5 { color: #990000; }
+  h1 { align: center; }
+-->
+</style>
+</head>
+
+<body bgcolor="#ffffff">
+<h1>Scid vs. PC Programmer's Reference</h1>
+Author: Shane G Hudson, 16-Jan-2002
+<br>
+Last updated by Stevenaaus, 14-Mar-2013
+
+<hr>
+<h2><a name="contents">Contents</a></h2>
+<table border="0" width="100%">
+<tbody><tr>
+<td>
+1. <a href="#intro">Introduction</a> <br>
+2. <a href="#base">sc_base</a> <br>
+3. <a href="#book">sc_book</a> <br>
+4. <a href="#clipbase">sc_clipbase</a> <br>
+5. <a href="#compact">sc_compact</a> <br>
+6. <a href="#filter">sc_filter</a> <br>
+7. <a href="#game">sc_game</a> <br>
+8. <a href="#info">sc_info</a> <br>
+9. <a href="#move">sc_move</a> <br>
+</td><td>
+10. <a href="#name">sc_name</a> <br>
+11. <a href="#optable">sc_optable</a> <br>
+12. <a href="#pos">sc_pos</a> <br>
+13. <a href="#progressBar">sc_progressBar</a> <br>
+14. <a href="#search">sc_search</a> <br>
+15. <a href="#tree">sc_tree</a> <br>
+16. <a href="#var">sc_var</a> <br>
+17. <a href="#string">Extra string commands</a> <br>
+</td></tr>
+</tbody></table>
+<hr>
+
+<h2><a name="intro">Introduction</a></h2>
+<p>
+<a href="http://scidvspc.sourceforge.net/">Scid vs. PC</a>
+is a free chess database written in C++ and Tcl/Tk.
+Two versions of the database interface exist.
+</p><l>
+<li> The full version, <b>Tkscid</b>, incorporates Tcl and Tk and is used in conjunction with Scid's
+     graphical user interface. </li>
+<li> <b>Tcscid</b> uses Tcl alone and has no GUI. It is useful for
+     writing small scripts that manipulate Scid databases. </li>
+</l> <br>
+So it is easy to write programs that use Scid databases, provided you
+know some Tcl (which is a very easy scripting language to learn)
+and know the extra Scid-specific commands.
+<b>This document explains these extra commands.</b>
+The Scid source code also includes a "scripts" directory with
+several scripting examples.
+</p>
+<p>
+The Tcl commands provided by tcscid and tkscid start with
+the prefix "sc_" (except for a couple of string processing functions),
+and are implemented, and further documented, in the file src/tkscid.cpp.
+</p>
+
+<p>
+On <b>Windows</b>, things are a little different. The executable <b>tkscid</b> is
+renamed to <b>scid.exe</b>, and the Tcl/Tk fontend <b>scid</b> is renamed to
+<b>scid.gui</b>. The Windows equivalent of <b>tcscid</b> is <b>tcscid.exe</b>.</p>
+
+<!--
+<h4>Scid Tcl program idioms</h4>
+
+<p>
+This section describes some common snippets and methods you may want
+to use when writing a Scid Tcl script to execute some action on a
+database.
+</p>
+-->
+
+<!-- ************************************************************ -->
+<hr>
+
+<h2>Commands</h2>
+<h2><a name="base">sc_base</a></h2>
+
+<p>
+Commands:
+<a href="#base_autoload">autoload</a>
+/ <a href="#base_close">close</a>
+/ <a href="#base_count">count</a>
+/ <a href="#base_create">create</a>
+/ <a href="#base_current">current</a>
+/ <a href="#base_description">description</a>
+/ <a href="#base_duplicates">duplicates</a>
+/ <a href="#base_ecoStats">ecoStats</a>
+/ <a href="#base_export">export</a>
+/ <a href="#base_filename">filename</a>
+/ <a href="#base_import">import</a>
+/ <a href="#base_inUse">inUse</a>
+/ <a href="#base_isReadOnly">isReadOnly</a>
+/ <a href="#base_numGames">numGames</a>
+/ <a href="#base_open">open</a>
+/ <a href="#base_slot">slot</a>
+/ <a href="#base_sort">sort</a>
+/ <a href="#base_stats">stats</a>
+/ <a href="#base_switch">switch</a>
+/ <a href="#base_tournaments">tournaments</a>
+/ <a href="#base_type">type</a>
+/ <a href="#base_upgrade">upgrade</a>
+</p>
+
+<p>
+This group contains commands for opening, closing and
+doing other actions on Scid databases.
+</p>
+<p>
+Scid can open eight databases and the (permanent, memory only) clipbase occupies slot nine.
+</p>
+
+<h4><a name="base_autoload">sc_base autoload [<i>gameNumber</i>]</a></h4>
+<p>
+Sets (or gets) the game number to be autoloaded when the current
+database is opened. A value of 0 indicates that no game should be
+loaded, and a value larger than the number of games in the database
+indicates that the last game should be loaded.
+</p>
+
+<h4><a name="base_close">sc_base close [<i>baseNum</i>]</a></h4>
+<p>
+Closes a database (current base by default). Returns nothing.
+</p>
+
+<h4><a name="base_count">sc_base count [free|used|total]</a></h4>
+<p>
+Returns the number of free, used or total (free + used) database slots.
+The optional parameter defaults to used.
+</p>
+
+<h4><a name="base_create">sc_base create <i>myfile</i> [<i>memoryOnly</i>:boolean]</a></h4>
+<p>
+Creates a new empty database, returning its slot number or an error
+message. The optional parameter <i>memoryOnly</i> defaults to false and
+indicates the database should exist in memory only.
+</p>
+
+<h4><a name="base_current">sc_base current</a></h4>
+<p>
+Returns the current database slot number.
+</p>
+
+<h4><a name="base_description">sc_base description [<i>text</i>]</a></h4>
+<p>
+Get, or set, the text describing a base. Maximum length is 107 chars.
+</p>
+
+<h4><a name="base_duplicates">sc_base duplicates [-<i>option value</i> ...]</a></h4>
+<p>
+Finds twin (duplicate) games in the current database and flags them
+for deletion. Parameters should be in groups of two (an option and value),
+and every value is a boolean.
+Returns the number of deleted games, or an error message.
+</p>
+<p>
+The recognised options that control whether any two games are considered
+to be twins are:
+</p><ul>
+<li> <b>-colors</b>: whether each player must have the same color in the
+     two games. </li>
+<li> <b>-event</b>, <b>-site</b>, <b>-round</b>, <b>-year</b>, <b>-month</b>,
+     <b>-day</b>, <b>-result</b>, <b>-eco</b>, <b>-moves</b>:
+     whether both games must have the same event, site, etc. </li>
+<li> <b>-comments</b>, <b>-variations</b>: whether games with comments and/or
+     variations should always be kept and never deleted. </li>
+<li> <b>-setfilter</b>: whether to set the filter to contain all the
+     duplicate games found.</li>
+<li> <b>-usefilter</b>: whether to only examine games in the current filter.
+     </li>
+</ul>
+<p></p>
+
+<h4><a name="base_ecoStats">sc_base ecoStats <i>ecoPrefix</i></a></h4>
+<p>
+Returns ECO opening code statistics for the given ECO prefix
+("A", "B34", etc) about the current database.
+The return value is a six-element list containing
+[0] number of games played,
+[1] number of 1-0 results,
+[2] number of 1/2-1-2 results,
+[3] number of 0-1 results,
+[4] number of * results, and
+[5] percentage score, for the specified ECO prefix.
+</p>
+
+<h4><a name="base_export">sc_base export current|filter PGN|HTML|LaTeX <i>filename</i> [-<i>option value</i> ...]</a></h4>
+<p>
+Exports the all filter games (or just the current game) to a PGN, HTML
+or LaTeX file.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+</p>
+<p>
+Options: <br>
+      [-append <i>boolean</i>] [-starttext <i>text</i>] [-endtext <i>text</i>]
+      [-comments <i>boolean</i>] [-variations <i>boolean</i>]
+      [-spaces <i>boolean</i>] [-symbols <i>boolean</i>]
+      [-indentComments <i>boolean</i>] [-indentVariations <i>boolean</i>]
+      [-column <i>boolean</i>]
+</p>
+<p>
+If the <i>append</i> option is true, the file should already exist and the
+games are appended to it.
+The <i>starttext</i> and <i>endtext</i> will appear at the start and end
+of the file. The final three parameters dictate whether comments and
+variations should be exported, and whether to add a space after each
+move number.
+</p>
+
+<h4><a name="base_filename">sc_base filename [<i>slot</i>]</a></h4>
+<p>
+Returns the file name for the specified slot, which defaults to the
+current database. The name returned for an empty database is "[empty]"
+or a translation of it, such as "[leer]" for Deutsch.
+Similarly, "[clipbase]" (or a translation of it) is returned for the
+clipbase slot.
+</p>
+
+<h4><a name="base_import">sc_base import file <i>filename</i><br>
+    sc_base import data <i>pgnData</i></a></h4>
+<p>
+Imports PGN games from the specified file or string of PGN data into
+the current database.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+Returns a message giving the number of game imported and any errors
+of warnings encountered.
+</p>
+
+<h4><a name="base_inUse">sc_base inUse</a></h4>
+<p>
+Returns a boolean value: 1 if the current database slot is in use,
+or 0 if it is empty.
+</p>
+
+<h4><a name="base_isReadOnly">sc_base isReadOnly [set]</a></h4>
+<p>
+If the optional parameter "set" is given, this command tries to
+set the current database to be read-only and returns an error if
+it is not successful.
+</p>
+<p>
+Without the optional "set", it returns a boolean value indicating
+whether the current database is read-only.
+</p>
+
+<h4><a name="base_numGames">sc_base numGames [<i>slot</i>]</a></h4>
+<p>
+Returns the number of games in the database in the specified slot, which
+defaults to the current database.
+</p>
+
+<h4><a name="base_open">sc_base open [-readonly] <i>filename</i></a></h4>
+<p>
+Tries to open the specified Scid database, in read-only mode if the
+optional -readonly is included.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+Returns the database slot number or an error message.
+</p>
+
+<h4><a name="base_slot">sc_base slot <i>filename</i></a></h4>
+<p>
+Given a filename, returns the slot number for the database with that
+filename if it is opened, or 0 if it is not open in Scid. The filename
+may represent a Scid-format database or a PGN file.
+</p>
+
+<h4><a name="base_sort">sc_base sort <i>criteria</i></a></h4>
+<p>
+Sorts the current database by the <i>criteria</i>, which is a string
+containing the criteria to use.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+Each criterion in the string should be from the following list and
+separated by commas, dots or spaces.
+</p>
+<p>
+Sorting criteria are:
+Date, Year, Event, Site, Round, White, Black, Eco, Result, Length,
+Rating, Country, Month, Deleted and Marked.
+</p>
+
+<h4><a name="base_stats">sc_base stats [<i>slot</i>]</a></h4>
+<p>
+Returns a 11-integer lists of statistics about the database in the
+specified slot, which defaults to the current database.
+The list is:
+[0] number of games,
+[1] number with delete flag on,
+[2] number with mark flag on,
+[3] number with comments,
+[4] number with variations,
+[5] minimum year,
+[6] maximum year,
+[7] mean year,
+[8] minimum rating,
+[9] maximum rating,
+[10] mean rating.
+</p>
+
+<h4><a name="base_switch">sc_base switch <i>slot</i></a></h4>
+<p>
+Switches to the specified database slot. The slot can be a number,
+or "c" for the clipbase.
+</p>
+
+<h4><a name="base_tournaments">sc_base tounaments [<i>-option value ...</i>]</a></h4>
+<p>
+Returns a list containing information about selected tournaments in
+the current database, with each list element being a 13-element
+sublist with data about one tournament.
+Options for restricting the tournament list are:
+</p>
+<ul>
+<li> -start <i>gameNumber</i>
+</li><li> -end <i>gameNumber</i>
+</li><li> -country <i>countryCode</i>
+</li><li> -minElo <i>eloRating</i>
+</li><li> -minGames <i>integer</i>
+</li><li>-maxGames <i>integer</i>
+</li><li> -minPlayers <i>integer</i>
+</li><li> -maxPlayers <i>integer</i>
+</li><li> -size <i>integer</i> (the maximum list length to return).
+</li><li> -site <i>siteText</i>
+</li><li> -player <i>playerText</i>
+</li></ul>
+
+<h4><a name="base_type">sc_base type <i>slot </i> [<i>type</i>]</a></h4>
+<p>
+Gets or sets the type icon number for the specified database. If the
+database is memory-only or read-only, and the type is set, the change
+only be temporary since no file will be altered.
+The type icons available are in the tcl/basewind.tcl source file.
+</p>
+
+<h4><a name="base_upgrade">sc_base upgrade <i>filename</i></a></h4>
+<p>
+Upgrades an old (2.x) Scid-format database to the new format used
+since Scid 3.0. The database should not already be open.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="book">sc_book</a></h2>
+
+<p>
+Commands:
+<a href="#book_altered">altered</a>
+/ <a href="#book_available">available</a>
+/ <a href="#book_close">close</a>
+/ <a href="#book_create">create</a>
+/ <a href="#book_deepest">deepest</a>
+/ <a href="#book_get">get</a>
+/ <a href="#book_moves">moves</a>
+/ <a href="#book_name">name</a>
+/ <a href="#book_next">next</a>
+/ <a href="#book_open">open</a>
+/ <a href="#book_prev">prev</a>
+/ <a href="#book_readonly">readonly</a>
+/ <a href="#book_set">set</a>
+/ <a href="#book_size">size</a>
+/ <a href="#book_strip">strip</a>
+/ <a href="#book_write">write</a>
+</p>
+<p>
+This group contains commands for handling "book" (EPD) files.
+An EPD file contains a number of chess positions, one per line,
+with extra text for each position in the form of opcodes (such
+as "bm" for best move and "pv" for principal variation). Each
+In the EPD file, all opcodes and their values are stored on the
+same line as the FEN string for the position, with a semicolon
+separating each opcode. In Scid, the opcodes are separated by
+newline characters instead; this makes EPD positions far easier
+to edit.
+</p>
+<p>
+Most sc_book commands take a <i>bookID</i> parameter which is
+the value returned by sc_book create or sc_book open.
+</p>
+
+<h4><a name="book_altered">sc_book altered <i>bookID</i></a></h4>
+<p>
+Returns a boolean value indicating if the book has been altered
+since it was last opened, created or saved.
+</p>
+
+<h4><a name="book_available">sc_book available</a></h4>
+<p>
+Returns a boolean value indicating if another book file can
+currently be opened or created.
+Use <a href="#info_limit">sc_info limit books</a> to find the
+maximum number of books Scid can have open at any time.
+</p>
+
+<h4><a name="book_close">sc_book close <i>bookID</i></a></h4>
+<p>
+Closes the book file, without saving it.
+</p>
+
+<h4><a name="book_create">sc_book create <i>filename</i></a></h4>
+<p>
+Creates a new empty book file called <i>filename</i>.
+Returns its <i>bookID</i> or an error message.
+</p>
+
+<h4><a name="book_deepest">sc_book deepest <i>bookID</i></a></h4>
+<p>
+Returns the deepest ply in the current game (main moves only,
+not variations) that matches a position in the book.
+</p>
+
+<h4><a name="book_get">sc_book get <i>bookID</i></a></h4>
+<p>
+Returns the book file text for the current position.
+</p>
+
+<h4><a name="book_moves">sc_book moves <i>bookID</i></a></h4>
+<p>
+Returns the list of all legal moves (in standard algebraic
+notation) from the current position that are recorded in this book.
+</p>
+
+<h4><a name="book_name">sc_book name <i>bookID</i></a></h4>
+<p>
+Returns the filename for the book.
+</p>
+
+<h4><a name="book_next">sc_book next <i>bookID</i></a></h4>
+<p>
+Clears the current game and sets its start position to
+be that of the next position found in the book (in the order
+they are stored in the book file).
+</p>
+
+<h4><a name="book_open">sc_book open <i>filename</i></a></h4>
+<p>
+Opens an existing book file called <i>filename</i>.
+Returns its <i>bookID</i> or an error message.
+</p>
+
+<h4><a name="book_prev">sc_book prev <i>bookID</i></a></h4>
+<p>
+Clears the current game and sets its start position to
+be that of the previous position found in the book (in the order
+they are stored in the book file).
+</p>
+
+<h4><a name="book_readonly">sc_book readonly <i>bookID</i></a></h4>
+<p>
+Returns a boolean value indicating whether this book file is
+read-only and cannot be edited.
+</p>
+
+<h4><a name="book_set">sc_book set <i>bookID</i> <i>text</i></a></h4>
+<p>
+Sets the book file text for the current position.
+</p>
+
+<h4><a name="book_size">sc_book size <i>bookID</i></a></h4>
+<p>
+Returns the number of positions recorded in the book.
+</p>
+
+<h4><a name="book_strip">sc_book strip <i>bookID</i> <i>opcode</i></a></h4>
+<p>
+Strips the specified EPD <i>opcode</i> from all positions in the book.
+</p>
+
+<h4><a name="book_write">sc_book write <i>bookID</i></a></h4>
+<p>
+Saves the current book file, and keeps it open.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="clipbase">sc_clipbase</a></h2>
+
+<p>
+Commands:
+<a href="#clipbase_copy">copy</a>
+/ <a href="#clipbase_clear">clear</a>
+/ <a href="#clipbase_paste">paste</a>
+</p>
+<p>
+This group contains commands for using the clipbase database.
+A program can find the clipbase slot number with the
+<a href="#info_clipbase">sc_info clipbase</a> command.
+</p>
+
+<h4><a name="clipbase_clear">sc_clipbase clear</a></h4>
+<p>
+Clears the clipbase so it contains no games.
+</p>
+
+<h4><a name="clipbase_copy">sc_clipbase copy</a></h4>
+<p>
+Copies the current game, adding it as a new game in the clipbase
+database.
+</p>
+
+<h4><a name="clipbase_paste">sc_clipbase paste</a></h4>
+<p>
+Pastes the last game copied to the clipbase, replacing the current
+game details and moves.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="compact">sc_compact</a></h2>
+
+<p>
+Commands:
+<a href="#compact_games">games</a>
+/ <a href="#compact_names">names</a>
+/ <a href="#compact_stats">stats</a>
+</p>
+<p>
+This group contains commands for compacting the current database.
+</p>
+
+<h4><a name="compact_games">sc_compact games</a></h4>
+<p>
+Removes all deleted games and fragmented space from the game file.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+Returns an error message if necessary.
+</p>
+
+<h4><a name="compact_names">sc_compact names</a></h4>
+<p>
+Removes all unused names from the name file.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+Returns an error message if necessary.
+</p>
+
+<h4><a name="compact_stats">sc_compact stats games<br>
+    sc_compact stats names</a></h4>
+<p>
+Returns compaction statistics for the current database.
+</p>
+<p>
+If the parameter is "games", it returns a 4-integer list:
+[0] current number of games,
+[1] current size of game file in bytes,
+[2] number of games after compaction,
+[3] size of game file after compaction.
+</p>
+<p>
+If the parameter is "names", it returns an 8-integer list:
+the current number of names, and number of unused names, for each
+name type (player, event, site, and round).
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="eco">sc_eco</a></h2>
+
+<p>
+Commands:
+<a href="#eco_base">base</a>
+/ <a href="#eco_game">game</a>
+/ <a href="#eco_read">read</a>
+/ <a href="#eco_reset">reset</a>
+/ <a href="#eco_size">size</a>
+/ <a href="#eco_summary">summary</a>
+/ <a href="#eco_translate">translate</a>
+</p>
+<p>
+This group contains commands for ECO opening classification.
+</p>
+
+<h4><a name="eco_base">sc_eco base <i>allGames</i>:boolean <i>extensions</i>:boolean</a></h4>
+<p>
+Reclassifies all games in the current base by ECO code.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+Returns a message stating the number of games classified and time taken.
+</p><p>
+</p>
+The first boolean parameter inidicates if all games (not only those
+with no existing ECO code) should be classified.
+The second boolean parameter indicates if Scid-specific ECO
+extensions (e.g. "B12j" instead of just "B12") should be used.
+<p></p>
+<p>
+If the database is read-only, games can still be classified but
+the results will not be stored to the database file.
+</p>
+
+<h4><a name="eco_game">sc_eco game [ply]</a></h4>
+<p>
+Finds and returns the deepest ECO code for the curent game.
+If the optional parameter "ply" is passed, it returns the ply depth
+of the deepest match instead of the ECO code.
+</p>
+
+<h4><a name="eco_read">sc_eco read <i>filename</i></a></h4>
+<p>
+Resets and reads the ECO classification (.eco) file.
+Returns the number of positions in the file, or an error message.
+</p>
+
+<h4><a name="eco_reset">sc_eco reset</a></h4>
+<p>
+Resets the ECO classification key to contain no positions.
+</p>
+
+<h4><a name="eco_size">sc_eco size</a></h4>
+<p>
+Returns the number of positions in the ECO classification key.
+</p>
+
+<h4><a name="eco_summary">sc_eco summary <i>ecoPrefix</i> [<i>htext</i>:boolean]</a></h4>
+<p>
+For the current database and given ECO prefix, returns a summary
+listing positions for the prefix. For example, if <i>ecoPrefix</i> is
+"A4", a line for each of A40, A41, ..., A49 will be returned.
+</p>
+<p>
+If the optional <i>htext</i> (defaults to true) is true, the summary
+is returned in color hypertext format instead of plain text.
+</p>
+
+<h4><a name="eco_translate">sc_eco translate <i>language</i> <i>fromText</i> <totext< i=""></totext<></a></h4>
+<p>
+Sets up a translation for an ECO opening name phrase for the specified
+language code.
+For example, <i>sc_eco translate D {Queens Indian} {Damenindisch}</i>
+will set the phrase <i>Queens Indian</i> in an ECO opening name to be
+displayed as <i>Damenindisch</i> in Deutsch (German).
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="filter">sc_filter</a></h2>
+
+<p>
+Commands:
+<a href="#filter_copy">copy</a>
+/ <a href="#filter_count">count</a>
+/ <a href="#filter_first">first</a>
+/ <a href="#filter_freq">freq</a>
+/ <a href="#filter_last">last</a>
+/ <a href="#filter_locate">locate</a>
+/ <a href="#filter_negate">negate</a>
+/ <a href="#filter_next">next</a>
+/ <a href="#filter_previous">previous</a>
+/ <a href="#filter_remove">remove</a>
+/ <a href="#filter_reset">reset</a>
+/ <a href="#filter_stats">stats</a>
+/ <a href="#filter_textfind">textfind</a>
+</p>
+<p>
+This group contains commands that manipulate the current database filter.
+</p>
+
+<h4><a name="filter_copy">sc_filter copy <i>from</i> <i>to</i></a></h4>
+<p>
+Copies all filter games in the database in slot <i>from</i> to the database
+in slot <i>to</i>.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+</p>
+
+<h4><a name="filter_count">sc_filter count [<i>slot</i>]</a></h4>
+<p>
+Returns the number of games in the filter of the database in the specified
+slot, which defaults to the current database.
+</p>
+
+<h4><a name="filter_first">sc_filter first</a></h4>
+<p>
+Returns the game number of the first game in the filter,
+or 0 if the filter is empty.
+</p>
+
+<h4><a name="filter_freq">sc_filter freq <i>date</i></a></h4>
+<p>
+Given a start date, returns a list of two values:
+[0] the number of filter games played since the date, and
+[1] the total number of database games played since the date.
+</p>
+
+<h4><a name="filter_last">sc_filter last</a></h4>
+<p>
+Returns the game number of the last game in the filter,
+or 0 if the filter is empty.
+</p>
+
+<h4><a name="filter_locate">sc_filter locate <i>gameNumber</i></a></h4>
+<p>
+Given a game number, returns the count of filtered games up to
+and including that game number. Used for jumping to a specified
+game number in the game list.
+</p>
+
+<h4><a name="filter_negate">sc_filter negate</a></h4>
+<p>
+Negates the filter to include only excluded games.
+</p>
+
+<h4><a name="filter_next">sc_filter next</a></h4>
+<p>
+Returns the game number of the next game in the filter, or 0 if there
+is no next filter game.
+</p>
+
+<h4><a name="filter_previous">sc_filter previous</a></h4>
+<p>
+Returns the game number of the previous game in the filter, or 0 if there
+is no previous filter game.
+</p>
+
+<h4><a name="filter_remove">sc_filter remove <i>gameNumber</i></a></h4>
+<p>
+Removes the specified game from the filter.
+</p>
+
+<h4><a name="filter_reset">sc_filter reset [<i>slot</i>]</a></h4>
+<p>
+Returns filter of the database in the specified
+slot, which defaults to the current database, to contain all games.
+</p>
+
+<h4><a name="filter_stats">sc_filter stats<br>
+    sc_filter stats all<br>
+    sc_filter stats elo <i>minRating</i><br>
+    sc_filter stats year <i>minYear</i></a></h4>
+<p>
+Returns statistics about the current filter for all filter games (the
+default), or
+only the filter games where both players have a rating of at
+least <i>minRating</i>,
+or only the filter games played since 1st January of <i>minYear</i>.
+</p>
+
+<h4><a name="filter_textfind">sc_filter textfind <i>filterNumber</i> <i>searchText</i></a></h4>
+<p>
+Returns the filter number of the next filtered game containing
+<i>searchText</i> in its White, Black, Event or Site fields, starting
+at the <i>filterNumber</i>'th filtered game.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="game">sc_game</a></h2>
+
+<p>
+Commands:
+<a href="#game_altered">altered</a>
+/ <a href="#game_crosstable">crosstable</a>
+/ <a href="#game_eco">eco</a>
+/ <a href="#game_find">find</a>
+/ <a href="#game_firstMoves">firstMoves</a>
+/ <a href="#game_flag">flag</a>
+/ <a href="#game_getTag">getTag</a>
+/ <a href="#game_import">import</a>
+/ <a href="#game_info">info</a>
+/ <a href="#game_list">list</a>
+/ <a href="#game_load">load</a>
+/ <a href="#game_merge">merge</a>
+/ <a href="#game_moves">moves</a>
+/ <a href="#game_new">new</a>
+/ <a href="#game_novelty">novelty</a>
+/ <a href="#game_number">number</a>
+/ <a href="#game_pgn">pgn</a>
+/ <a href="#game_pop">pop</a>
+/ <a href="#game_push">push</a>
+/ <a href="#game_reloadTags">reloadTags</a>
+/ <a href="#game_save">save</a>
+/ <a href="#game_scores">scores</a>
+/ <a href="#game_setTags">setTags</a>
+/ <a href="#game_startBoard">startBoard</a>
+/ <a href="#game_strip">strip</a>
+/ <a href="#game_truncate">truncate</a>
+</p>
+<p>
+This group contains commands that act on the current game.
+</p>
+
+<h4><a name="game_altered">sc_game altered</a></h4>
+<p>
+Returns a boolean value indicating whether the current game has
+been altered.
+</p>
+
+<h4><a name="game_crosstable">sc_game crosstable plain|html|hypertext|filter
+    [name|rating|score] [allplay|swiss|knockout]
+    [(+|-)(colors|countries|ratings|titles|groups)]</a></h4>
+<p>
+Returns the crosstable for the current game, in plain text, HTML, or color
+hypertext format. The "filter" option produces no returned result but
+instead it adds all games in the current tournament to the filter.
+</p>
+
+<h4><a name="game_eco">sc_game eco [ply]</a></h4>
+<p>
+This is equivalent to <a href="#eco-game">sc_eco game</a>.
+</p>
+
+<h4><a name="game_firstMoves">sc_game firstMoves <i>gameNumber</i> <i>numHalfMoves</i></a></h4>
+<p>
+Returns the first few moves of the specified game as a line of text. A game
+number of 0 indicates the current game.
+</p>
+
+<h4><a name="game_find">sc_game find <i>game-data parameters</i></a></h4>
+<p>
+Takes 7 parameters (usually obtained from the user bookmarks file)
+describing a game in the current database, and returns the game number
+of the best matching game. The parameters are the original game number,
+White name, Black name, Site, Round, Year, and Result.
+</p>
+
+<h4><a name="game_flag">sc_game flag <i>flag</i> <i>gameNumber</i>|all|filter [0|1|invert]</a></h4>
+<p>
+Sets (or gets) the specified flag (D=delete, W=White opening, etc) for
+the specified game, or all games, or all filtered games. The flag can
+be set on, off or inverted, according to the final parameter. If the
+final parameter is not specified, the previous parameter should be a
+game number and the current value (0 or 1) of the specified flag for
+that game is returned.
+</p>
+
+<h4><a name="game_getTag">sc_game getTag [-last] <i>tagName</i></a></h4>
+<p>
+Returns the specified tag for the current game. If the optional "-last"
+is included, the value is for the last game in the database rather than
+the current game.
+</p>
+<p>
+Valid tag names are: Event, Site, Date, Year, Month, Day, Round, Result,
+White: Black, WhiteWlo, BlackElo, WhiteRType, BlackRType, ECO and Extra.
+</p>
+
+<h4><a name="game_import">sc_game import <i>pgnText</i></a></h4>
+<p>
+Imports the specified PGN text, replacing the current game details
+and moves.
+Return a message stating any errors or warnings found.
+</p>
+
+<h4><a name="game_info">sc_game info <i>option...</i></a></h4>
+<p>
+Returns the game information text for the current game, as it appears
+below the chessboard, in color hypertext.
+Options include:
+</p><ul>
+<li><b>-white</b>, <b>-black</b>, <b>-event</b>, <b>-site</b>: return the
+    White, Black, Event or Site tag instead. </li>
+<li><b>-duplicate</b>: return the number of the twin of this game, or 0 if it
+    has no twin. </li>
+<li><b>-fen <i>boolean</i></b>: whether to display the FEN representation
+    of the current position. </li>
+<li><b>-hideNextMove <i>boolean</i></b>: whether to hide the next move. </li>
+<li><b>-materialValue <i>boolean</i></b>: whether to print the numeric
+    material value for each side. </li>
+<li><b>-tb 0|1|2</b>: how much tablebase information to lookup and display:
+    0 = no TB output, 1 = score only, 2 = score and best moves. </li>
+</ul>
+<p></p>
+
+<h4><a name="game_list">sc_game list <i>start</i> <i>count</i> <i>format</i></a></h4>
+<p>
+Returns a portion of the game list according to the current filter.
+The portion to print is specified by <i>start</i> and <i>count</i>, where
+<i>start</i> is in the range 1 to the number of filtered games.
+</p>
+<p>
+The final argument is the format string -- see IndexEntry::PrintGameInfo()
+in src/index.cpp for details of the format accepted.
+</p>
+
+<h4><a name="game_load">sc_game load <i>gameNumber</i></a></h4>
+<p>
+Loads the specified game from the current database.
+Returns an error message if not successful.
+</p>
+
+<h4><a name="game_merge">sc_game merge <i>baseNum gameNum [endPly]</i></a></h4>
+<p>
+Merge the specified game into a variation from the current game position.
+If given, endPly indicates to merge that number of moves only.
+</p>
+
+<h4><a name="game_moves">sc_game moves [<i>options</i>...]</a></h4>
+<p>
+Returns a string or list of the moves reaching the current game position.
+Optional arguments: "coord" for coordinate notation (1 move per line);
+"nomoves" for standard algebraic without move numbers (default output is
+standard algebraic with move numbers);
+"list" for list format instead of a single string.
+</p>
+<p>
+This command is primarily used for getting the sequence of moves to
+send to a chess engine for analysis of the current position.
+</p>
+
+<h4><a name="game_new">sc_game new</a></h4>
+<p>
+Clears the current game.
+</p>
+
+<h4><a name="game_novelty">sc_game novelty [-older|-all] [-updatelabel <i>label</i>] [<i>slot</i>]</a></h4>
+<p>
+Finds the first move in the current game (after the deepest position found
+in the ECO file if it is loaded) that results in a position not found in
+the specified database (which defaults to the current database).
+If a novelty move is found, a string indicating the move number and move
+is returned, such as "11.Qc2". Otherwise, an error message is returned.
+</p>
+<p>
+The first optional parameter controls whether all games (which is the
+default) or only games older than the current game should be examined.
+The second optional parameter pair indicates a Tcl/Tk label widget that
+should have its text component updated during the novelty search to show
+progress, e.g. "Trying: 8...Nxd4" then "Trying: 9.Qxd4", etc.
+</p>
+
+<h4><a name="game_number">sc_game number</a></h4>
+<p>
+Returns the current game number.
+</p>
+
+<h4><a name="game_pgn">sc_game pgn [-<i>option</i> <i>value</i> ...]</a></h4>
+<p>
+Returns the PGN representation of the current game. The parameters are
+pairs of "-option value" settings. Valid options are:
+</p><ul>
+<li><b>-format plain|color|html|latex</b>: output format. Default=plain. </li>
+<li><b>-shortHeader 0|1</b>: whether to print a short, 3-line verison of the
+    PGN header. Default=0. </li>
+<li><b>-space 0|1</b>: whether to print a space after move numbers.
+    Default=0. </li>
+<li><b>-tags 0|1</b>: whether to print non-standard tags. Default=1. </li>
+<li><b>-comments 0|1</b>: whether to print comments. Default=1. </li>
+<li><b>-variations 0|1</b>: whether to print variations. Default=1. </li>
+<li><b>-indentComments 0|1</b>: whether to indent comments. Default=0. </li>
+<li><b>-indentVars 0|1</b>: whether to indent variationss. Default=0. </li>
+<li><b>-width <i>integer</i></b>: line width for word wrapping. Default=99999,
+    a huge value to let a Tcl/Tk text widget do its own wrapping. </li>
+<li><b>-gameNumber <i>integer</i></b>: game number to print instead of
+    the current game. </li>
+</ul>
+<p></p>
+
+<h4><a name="game_pop">sc_game pop</a></h4>
+<p>
+Pops the current game, returning to the previous oe on the stack.
+</p>
+
+<h4><a name="game_push">sc_game push</a></h4>
+<p>
+Saves the current game to a stack so it can be restored, and sets up a new
+empty game.
+</p>
+
+<h4><a name="game_reloadTags">sc_game reloadTags</a></h4>
+<p>
+Reloads the tags (White, Black, Event, etc) for a game.
+Useful when a name that may occur in the current game has been edited.
+</p>
+
+<h4><a name="game_save">sc_game save <i>gameNumber</i></a></h4>
+<p>
+Saves the current game, replacing game numbered <i>gameNumber</i>.
+If <i>gameNumber</i> is 0, a new game is added to the database.
+</p>
+
+<h4><a name="game_scores">sc_game scores [<i>maxScore</i>]</a></h4>
+<p>
+Returns a Tcl list of the numeric scores of each move, as found
+in the commment for each move of the game.
+A score is a number with the format "+digits.digits" or "-digits.digits"
+found somewhere in the comment of the move, OR the comment of the
+first variation of the move.
+</p>
+<p>
+In this way, both Scid annotations which have the form <br>
+        <code>1.e4 {"+0.13: ...."} e5 ...</code> <br>
+and those produced by crafty's annotate command which have the form <br>
+        <code>1.e4 ({7:+0.12} ...) e5 ...</code> <br>
+are recognised. The latter form (comments in variations) had the score
+from the perspective of the side to move in Crafty versions 17 and
+older, but now have the score always from White's perspective, since
+version 18.
+</p>
+<p>
+The list returned should be read in pairs of values: the first is the
+move (0.0 = start, 0.5 after White's first move, 1.0 after Black's
+first move, etc) and the second is the value found.
+</p>
+<p>
+The parameter <i>maxScore</i> (defaults to 10.0) trims all scores
+to a maximum absolute value, to prevent plotting of extreme values.
+</p>
+
+<h4><a name="game_setTags">sc_game setTags <i>tagValues</i>...</a></h4>
+<p>
+Sets all the tags (White, Black, Event, etc) for the current game.
+There should be tag value 13 parameters:
+Event, Site, Date, Round, White, Black, Result,
+WhiteElo, WhiteRatingType, BlackElo, BlackRatingType, Eco and Extra.
+The final value is a string of lines in the format: <br>
+    <code>[TagName "TagValue"]</code>
+</p>
+
+<h4><a name="game_startBoard">sc_game startBoard [<i>fen</i>]</a></h4>
+<p>
+If <i>fen</i> is not supplied, a boolean value is returned indicating
+whether the current game starts with a non-standard position.
+Otherwise, the moves of the current game are cleared and its starting
+positition is set to the specified FEN string.
+An error message is returned if the FEN string is invalid.
+</p>
+
+<h4><a name="game_strip">sc_game strip [comments|variations]</a></h4>
+<p>
+Strips all comments or annotations from the current game.
+</p>
+
+<h4><a name="game_truncate">sc_game truncate</a></h4>
+<p>
+Truncates the current game at its current position.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="info">sc_info</a></h2>
+
+<p>
+Commands:
+<a href="#info_asserts">asserts</a>
+/ <a href="#info_clipbase">clipbase</a>
+/ <a href="#info_decimal">decimal</a>
+/ <a href="#info_fsize">fsize</a>
+/ <a href="#info_gzip">gzip</a>
+/ <a href="#info_html">html</a>
+/ <a href="#info_limit">limit</a>
+/ <a href="#info_preMoveCmd">preMoveCmd</a>
+/ <a href="#info_ratings">ratings</a>
+/ <a href="#info_tb">tb</a>
+/ <a href="#info_validDate">validDate</a>
+/ <a href="#info_version">version</a>
+</p>
+<p>
+This group contains commands for general Scid information.
+</p>
+
+<h4><a name="info_asserts">sc_info asserts</a></h4>
+<p>
+Returns the number of assertions checked. This will be 0 if the program
+was compiled without <code>-DASSERTIONS</code> defined.
+</p>
+
+<h4><a name="info_clipbase">sc_info clipbase</a></h4>
+<p>
+Returns the slot number of the clipbase.
+</p>
+
+<h4><a name="info_decimal">sc_info decimal [<i>char</i>]</a></h4>
+<p>
+If <i>char</i> is defined, this command sets the decimal point character
+to <i>char</i>. Otherwise, it returns the current decimal point character.
+</p>
+
+<h4><a name="info_fsize">sc_info fsize <i>filename</i></a></h4>
+<p>
+Returns the number of elements (games, lines or positions) in the
+specified file. For a Scid-format database or PGN file, the number
+of games is returned. For an EPD file, the number of positions is
+returned. For an opening repertoire file, the number of (include and
+exclude) lines is returned. The file may be GZip-compressed.
+</p>
+<p>
+For all types except Scid-format databases, only the first 64 kilobytes
+of the file are examined to compute the number of elements, so the
+value returned is an estimate if the file exceeds this size.
+An estimate value is returned as a negative value to distinguish it from
+an exact value, and is suitably rounded to a multiple of 10, 100 or 1000.
+</p>
+
+<h4><a name="info_gzip">sc_info gzip</a></h4>
+<p>
+Returns a boolean value, indicating if the program was compiled with
+the zlib library for reading GZip format files.
+</p>
+
+<h4><a name="info_html">sc_info html [0|1]</a></h4>
+<p>
+Sets or gets the HTML diagram style number. There are currently
+two styles, 0 (using images in the "bitmaps" directory) and 1 (which
+uses images in the "bitmaps2" directory).
+</p>
+
+<h4><a name="info_limit">sc_info limit <i>type</i></a></h4>
+<p>
+Returns the integer value of a limit that is built in to Scid.
+Valid types are:
+</p><ul>
+<li><b>clipbase</b>: the maximum number of games in the clipbase. </li>
+<li><b>elo</b>: the highest permitted rating value. </li>
+<li><b>epd</b>: the maximum number of open EPD files. </li>
+<li><b>events</b>: the maximum number of unique Events in a database. </li>
+<li><b>games</b>: the maximum number of games in a database. </li>
+<li><b>nags</b>: the maximum number of NAGs (annotation symbols) for any
+    single move. </li>
+<li><b>players</b>: the maximum number of unique Players in a database. </li>
+<li><b>rounds</b>: the maximum number of unique Rounds in a database. </li>
+<li><b>sites</b>: the maximum number of unique Sites in a database. </li>
+<li><b>year</b>: the maximum permitted year of a game date. </li>
+</ul>
+<p></p>
+
+<h4><a name="info_preMoveCmd">sc_info preMoveCmd [<i>command</i>]</a></h4>
+<p>
+Sets (or returns the current value, if <i>command</i> is not supplied) the
+pre-move command, which is called before every change of the board
+position. This is useful for checking if the contents of a window
+editing the comment for each move has changed, for example.
+</p>
+
+<h4><a name="info_ratings">sc_info ratings</a></h4>
+<p>
+Returns a Tcl list of all known rating types, which currently are:
+Elo, Rating, Rapid, ICCF, USCF, DWZ and BCF.
+</p>
+
+<h4><a name="info_tb">sc_info tb [<i>directory</i>]</a></h4>
+<p>
+If <i>directory</i> is supplied, this command sets the directory where
+tablebase files are located to <i>directory</i>, and returns the
+largest number of pieces and pawns found by the tablebase decoder.
+Otherwise, it returns a boolean value indicating if the program was
+compiled with tablebase support.
+</p>
+
+<h4><a name="info_validDate">sc_info validDate <i>dateString</i></a></h4>
+<p>
+Returns a boolean value indicating if <i>dateString</i> is a valid
+date or part of one: 2001.12.31 or 2001.?? for example.
+</p>
+
+<h4><a name="info_version">sc_info version [date]</a></h4>
+<p>
+Returns the Scid version: "2.4" for example. If the
+option "date" is added, it returns the version date instead:
+"May 2001" for example.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="move">sc_move</a></h2>
+
+<p>
+Commands:
+<a href="#move_add">add</a>
+/ <a href="#move_addSan">addSan</a>
+/ <a href="#move_back">back</a>
+/ <a href="#move_end">end</a>
+/ <a href="#move_forward">forward</a>
+/ <a href="#move_pgn">pgn</a>
+/ <a href="#move_ply">ply</a>
+/ <a href="#move_start">start</a>
+</p>
+<p>
+This group contains commands related to navigation within the
+current game and move entry.
+</p>
+
+<h4><a name="move_add">sc_move add <i>from</i> <i>to</i> <i>promo</i></a></h4>
+<p>
+Tries to add the move specified by the squares <i>from</i> and <i>to</i>
+(which are integers: 0=a1, 1=b1, 2=c1, ..., 62=g8, 63=h8) and the
+promotion piece <i>promo</i> (2=Queen, 3=Rook, 4=Bishop, 5=Knight).
+The squares can be specified in either order.
+Returns an error message if the move could not be added.
+</p>
+
+<h4><a name="move_addSan">sc_move addSan [<i>move</i> ... ]</a></h4>
+<p>
+Takes a sequence of standard algebraic (SAN) chess moves (ONE per
+parameter) and tries to add them to the current game.
+Returns an arror message if any move could not be added, or the number
+of added moves if all were successful.
+</p>
+<p>
+Move numbers are ignored, so the command
+"sc_move addSan 1.e4 e5 2.Nf3 Nf6" is fine
+at the starting position, for example.
+</p>
+
+<h4><a name="move_back">sc_move back [<i>count</i>]</a></h4>
+<p>
+Moves back <i>count</i> moves (default: 1 move) in the current game.
+Never returns an error.
+</p>
+
+<h4><a name="move_end">sc_move end</a></h4>
+<p>
+Moves to the final main-line position in the game.
+</p>
+
+<h4><a name="move_forward">sc_move forward [<i>count</i>]</a></h4>
+<p>
+Moves forward <i>count</i> moves (default: 1 move) in the current game.
+Never returns an error.
+</p>
+
+<h4><a name="move_pgn">sc_move pgn [<i>offset</i>]</a></h4>
+<p>
+Moves position in the game according to an offset generated when the
+PGN representation of the game in color hypertext format was produced.
+This allows any game point in the PGN window of Scid to be reached
+just by clicking the mouse on it.
+</p>
+
+<h4><a name="move_ply">sc_move ply [<i>ply</i>]</a></h4>
+<p>
+Moves to the specified ply (half-move) number in the main line
+of the game.
+</p>
+
+<h4><a name="move_start">sc_move start</a></h4>
+<p>
+Moves to the starting position in the game.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="name">sc_name</a></h2>
+
+<p>
+Commands:
+<a href="#name_correct">correct</a>
+/ <a href="#name_edit">edit</a>
+/ <a href="#name_info">info</a>
+/ <a href="#name_match">match</a>
+/ <a href="#name_ratings">ratings</a>
+/ <a href="#name_read">read</a>
+/ <a href="#name_spellcheck">spellcheck</a>
+</p>
+<p>
+This group contains commands for name spell-checking and editing.
+Most take a "p|e|s|r" parameter to indicate the type of name: Player,
+Event, Site or Round.
+</p>
+
+<h4><a name="name_correct">sc_name correct p|e|s|r <i>corrections</i></a></h4>
+<p>
+Corrects specified names in the database, as given by <i>corrections</i>.
+</p>
+
+<h4><a name="name_edit">sc_name edit p|e|s|r all|filter|crosstable <i>old</i> <i>new</i></a></h4>
+<p>
+Edits a name in the name file. This requires writing the index file, since
+the ID number of the edited name will change.
+The change can apply to all games, filtered games only, or games in the
+current tournament only.
+It is acceptable for the new name to already exist in the database.
+</p>
+
+<h4><a name="name_info">sc_name info [-ratings|-htext] <i>player</i></a></h4>
+<p>
+Returns information about a player: game stats, rating history, etc.
+If "-ratings" is specified, only ratings information is returned, in a
+Tcl list. If "-htext" is specified, the information is in hypertext
+format (as used in the player information window).
+</p>
+
+<h4><a name="name_match">sc_name match p|e|s|r <i>prefix</i> <i>maxMatches</i></a></h4>
+<p>
+Returns a Tcl list of the first <i>maxMatches</i> names in the database
+that start with <i>prefix</i>. The list should be read in pairs: the first
+element of each pair is the frequency, the second is the name.
+</p>
+
+<h4><a name="name_ratings">sc_name ratings</a></h4>
+<p>
+Scans the current database for games with unrated players who
+have Elo rating information in the spellcheck file, and fills
+in the missing Elo ratings.
+Returns a two-element list: the number of changed ratings, and the
+number of changed games.
+</p>
+
+<h4><a name="name_read">sc_name read [<i>filename</i>]</a></h4>
+<p>
+Reads a Scid spellcheck (.ssp) file into memory, and returns a list of
+four integers: the number of player, event, site and round names in
+the file.
+If there is no <i>filename</i> argument, this command just returns the same
+list for the current spellcheck data without reading a new file.
+</p>
+
+<h4><a name="name_spellcheck">sc_name spellcheck [-max <i>integer</i>] [-surnames <i>boolean</i>] [-ambiguous <i>boolean</i>] players|events|sites|rounds</a></h4>
+<p>
+Scans the current database for spelling corrections, and returns them in
+in a large text string along with an introductory explanation. Up to
+the specified number of corrections (default=20000) are included.
+</p>
+<p>
+If the <i>-surnames</i> option is true (it defaults to false), surname-only
+player corrections (e.g. "Adams" into "Adams, Michael") are also
+listed where possible.
+The <i>-ambiguous</i> option defaults to false and specifies whether
+ambiguous corrections should be returned.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="optable">sc_optable</a></h2>
+
+<p>
+This group contains commands for creating an opening report or
+theory table.
+</p>
+<p>
+<b>To be completed...</b>
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="pos">sc_pos</a></h2>
+
+<p>
+Commands:
+<a href="#pos_addNag">addNag</a>
+/ <a href="#pos_bestSquare">bestSquare</a>
+/ <a href="#pos_board">board</a>
+/ <a href="#pos_clearNags">clearNags</a>
+/ <a href="#pos_fen">fen</a>
+/ <a href="#pos_getComment">getComment</a>
+/ <a href="#pos_getNags">getNags</a>
+/ <a href="#pos_html">html</a>
+/ <a href="#pos_isAt">isAt</a>
+/ <a href="#pos_isLegal">isLegal</a>
+/ <a href="#pos_isPromotion">isPromotion</a>
+/ <a href="#pos_matchMoves">matchMoves</a>
+/ <a href="#pos_moveNumber">moveNumber</a>
+/ <a href="#pos_pgnBoard">pgnBoard</a>
+/ <a href="#pos_pgnOffset">pgnOffset</a>
+/ <a href="#pos_probe">probe</a>
+/ <a href="#pos_setComment">setComment</a>
+/ <a href="#pos_side">side</a>.
+</p>
+<p>
+This group contains commands related to the current position.
+</p>
+
+<h4><a name="pos_addNag">sc_pos addNag <i>nag</i></a></h4>
+<p>
+Adds a single NAG (numeric annotation glyph) to the current position.
+The <i>nag</i> can by in many forms: "3", "$3", "!!", etc.
+See the funtion game_parseNag in src/game.cpp for details.
+</p>
+
+<h4><a name="pos_bestSquare">sc_pos bestSquare <i>sq</i></a></h4>
+<p>
+Returns an integer indicating the "best" legal move to or from <i>sq</i>.
+Both <i>sq</i> and the return value have the format
+0=a1, 1=b1, ..., 62=g8, 63=h8. If there is no legal move to or from
+the specified square, -1 is returned.
+</p>
+<p>
+This is used for "smart" mouse move entry, but the current algorithm
+for choosing best moves is very primitive and silly moves are
+frequently suggested.
+</p>
+
+<h4><a name="pos_board">sc_pos board</a></h4>
+<p>
+Returns a 64-character string containing the current position,
+in the square order [a1, b1, ..., g8, h8] with white pieces in
+capitals and a dot for every empty square.
+For example, the initial position is
+"RNBQKBNRPPPPPPPP................................pppppppprbnqkbnr".
+</p>
+
+<h4><a name="pos_clearNags">sc_pos clearNags</a></h4>
+<p>
+Removes all NAGs (annotation symbols) for the current position.
+</p>
+
+<h4><a name="pos_fen">sc_pos fen</a></h4>
+<p>
+Returns the complete FEN representation of the current position
+including castling, en passent, the half-move clock and the ply count.
+</p>
+
+<h4><a name="pos_getComment">sc_pos getComment</a></h4>
+<p>
+Returns the comment for the current position.
+</p>
+
+<h4><a name="pos_getNags">sc_pos getNags</a></h4>
+<p>
+Returns the NAGs for the current position, as a space-separated
+string of symbols or numbers where no symbolic form is known:
+"!! +- 37" for exmaple.
+</p>
+
+<h4><a name="pos_html">sc_pos html</a></h4>
+<p>
+Returns the HTML text for a diagram of the current position,
+assuming it will be used in a file where there is a subdirctory
+"bitmaps" that contains the piece/square images.
+</p>
+
+<h4><a name="pos_isAt">sc_pos isAt start|end|vstart|vend</a></h4>
+<p>
+Returns the boolean value indicating whether the current position is at
+the start of the game, end of the game, start of a variation, or end
+of a variation, depending on the specified parameter.
+</p>
+
+<h4><a name="pos_isLegal">sc_pos isLegal <i>sq1</i> <i>sq2</i></a></h4>
+<p>
+Returns a boolean value indicating if the move between the
+two squares <i>sq1</i> and <i>sq2</i> (which are in integer
+format: 0=a1, 1=b1, ..., 62=g8, 63=h8, and can be in either order)
+is legal.
+</p>
+
+<h4><a name="pos_isPromo">sc_pos isPromo <i>sq1</i> <i>sq2</i></a></h4>
+<p>
+Takes two squares (in integer format: 0=a1, 1=b1, ..., 62-g8, 63=h8, and
+can be in either order) and returns true if they represent a pawn
+promtion move. It does not check that the move is legal.
+</p>
+
+<h4><a name="pos_matchMoves">sc_pos matchMoves <i>prefix</i> [<i>coord</i>:boolean]</a></h4>
+<p>
+Returns a Tcl list of legal moves matching a specified prefix. Note that
+any occurence of "x", "=", "+", or "#" is removed from the move text of
+each move, and the castling moves are "OK" and "OQ" for king and queen-side
+castling respectively, so that no move is a prefix of
+any other move.
+</p>
+<p>
+If <i>coord</i> is true (it defaults to false), coordinate-style moves
+are also printed, such as "g1f3" for "Nxf3".
+</p>
+<p>
+This command is primarily used for auto-completion of keyboard
+move entry and displaying all matching moves as a move is entered.
+</p>
+
+<h4><a name="pos_moveNum">sc_pos moveNum</a></h4>
+<p>
+Returns the current full move number.
+</p>
+
+<h4><a name="pos_pgnBoard">sc_pos pgnBoard <i>pgnText</i></a></h4>
+<p>
+Given text with PGN moves (e.g. 1.e4 e5 2.Nf3 ...), returns a string
+indicating the resulting board position in 64 characters, in the
+same format as returned by <a href="#pos_board">sc_pos board</a>.
+This command may be merged into sc_pos board (with the PGN text as
+an optional parameter) in a future version.
+</p>
+
+<h4><a name="pos_pgnOffset">sc_pos pgnOffset [<i>next</i>:boolean]</a></h4>
+<p>
+Returns the PGN offset of the current move (or next move if the optional
+<i>next</i> is true) in the current game, which is the number of moves
+printed up to the move in its PGN representation. This is used for
+highlighting the current and next move in the PGN window.
+</p>
+
+<h4><a name="pos_probe">sc_pos probe [report|optimal|score]</a></h4>
+<p>
+Probes tablebases for information about the current position.
+The information returned depends on the parameter, For "report",
+it returns a report of results for each legal move with the moves
+grouped by result, as seen in the Tablebase window.
+For "optimal", it returns a list of optimal moves for this position,
+For "score" (the default), it returns the tablebase result as an integer
+where 0 is a draw, 1 means the to move mates in 1, -1 means the side to
+move is checkmated, etc.
+</p>
+
+<h4><a name="pos_setComment">sc_pos setComment <i>text</i></a></h4>
+<p>
+Sets the comment for the current position.
+</p>
+
+<h4><a name="pos_side">sc_pos side</a></h4>
+<p>
+Returns the side to move: "white" or "black".
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="progressBar">sc_progressBar</a></h2>
+
+<h4>sc_progressBar [<i>canvas</i> <i>rect</i> <i>width</i> <i>height</i> [<i>timeLabel</i>]]</h4>
+<p>
+With no parameters, this command resets the progress bar so none is
+used, and notes an interruption so if an operation using the progress
+bar periodically checks for interruption, it will stop without completing
+its task.
+</p>
+<p>
+With 4 or 5 parameters, it sets up a progress bar for use by the next
+command that updates one, given a <i>canvas</i> widget, the tag
+name <i>rect</i> of a rectangle object in it, the progress bar
+<i>width</i> and <i>height</i>, and (optionally) a time label text
+object in the canvas where a time estimate such as "0:08 / 0:13" is
+to be displayed.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="search">sc_search</a></h2>
+
+<p>
+Commands:
+<a href="#search_board">board</a>
+/ <a href="#search_header">header</a>
+/ <a href="#search_material">material</a>
+/ <a href="#search_repertoire">repertoire</a>
+</p>
+<p>
+This group contains commands for database searches, except for tree
+searches which are in the <a href="#tree">sc_tree</a> group.
+</p>
+<p>
+All the search commands update the <a href="#progressBar">progress bar</a>
+if applicable.
+</p>
+<p>
+The search commands take a <i>filterOp</i> parameter which specifies
+how the current filter should affect the search:
+</p><ul>
+<li> 0: AND -- only search in the current filter, resricting it. </li>
+<li> 1: OR -- search games not in ther filter, adding to the filter. </li>
+<li> 2: RESET -- ignore the filter, resetting it before the search. </li>
+</ul>
+<p></p>
+
+<h4><a name="search_board">sc_search board <i>filterOp</i> E|P|F|M <i>inVars</i>:boolean</a></h4>
+<p>
+Searches for the current board position. E = an exact position search,
+P = same pawn structure exactly (and same material),
+F = pawns on same files (and same material),
+M = same material only.
+If <i>inVars</i> is true, variations are also searched -- but this can
+take much longer..
+</p>
+
+<h4><a name="search_header">sc_search header <i>{-option VALUE}</i></a></h4>
+<p>
+Searches for header information: names, dates, results, etc. including the given criteria.
+</p>
+<p>
+The options can be:
+</p><p>
+        white, black, event, site, round,
+        date, results, welo, belo, delo,
+        wtitles, btitles, toMove,
+        eco, length, gameNumber, flip, filter,
+        fStdStart, fPromotions, fComments, fVariations,
+        fAnnotations, fDelete, fWhiteOpening, fBlackOpening,
+        fMiddlegame, fEndgame, fNovelty, fPawnStructure,
+        fTactics, fKingside, fQueenside, fBrilliancy, fBlunder,
+        fUser, fCustom1 , fCustom2 , fCustom3 ,
+        fCustom4 , fCustom5 , fCustom6 , pgn, ignoreCase
+</p>
+<p>
+Where (for eg) "-fDelete 1" signifies the Delete Flag, and "-delo {Low High}" signifies the Elo difference range.
+Elo args take a 2 item list (-welo {2400 2500}), Eco a 3 item list and date a 4 item list.
+</p>
+
+<h4><a name="search_material">sc_search material <i>{-option VALUE}</i></a></h4>
+<p>
+Searches for material and piece patterns.
+Like <a href="#search_header">sc_search header</a>, it requires a
+large number of parameters to be ueful, and could use a rewrite of its parameter processing.
+Simple searches like "sc_search material -wq {2 2}" will find positions where two white queens are the only material present.
+</p>
+<p>
+Valid parameters are:
+</p>
+<ul>
+<li> -wq|-bq|-wr|-br|-wn|-bn|-wm|-bm|-wp|-bp <i>two-integer-list</i> <br>
+     which specifies the minimum and maximum values of a particular
+     piece type and color; note that <i>wm</i> and <i>bm</i> denote the
+     counts of white or black minor pieces.
+     All the piece types default to a minimum and maximum of zero,
+     except the minor piece (wm and bm) counts which default to a
+     minumum of 0 and maximum of 9.
+</li><li> -flip <i>boolean</i> <br>
+     which specifies whether to ignore colors. The default is false.
+</li><li> -filter 0|AND|and|1|OR|or|2|IGNORE|ignore <br>
+     which specifies the operation on the current filter. The parameter
+     can be a an integer value 0, 1 or 2, or the word AND, OR or IGNORE,
+     or any case-insensitive prefix of any of these words.
+</li><li> -range <i>two-integer-list</i> <br>
+     for the smallest and largest whole move number where each game
+     should be searched.
+</li><li> -length <i>length</i> <br>
+     which specifies the number of successive half-moves the search
+     should match for, an integer value. The default is 1.
+</li><li> -bishops either|same|opposite <br>
+     which specifies, when both sides have one bishop, whether they
+     should be of the same, opposite, or either square color.
+     The default is <i>either</i>.
+</li><li> -pattern <i>four-element-list:flag,piece,file,rank</i> <br>
+     which adds a search pattern. The <i>flag</i> is a boolean,
+     <i>piece</i> is a piece like wp, bk, etc, or <i>?</i> for any,
+     <i>file</i> is a chessboard file or <i>?</i>, and <i>rank</i>
+     is a chessboard rank or <i>?</i>.
+</li></ul>
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="tree">sc_tree</a></h2>
+
+<p>
+Commands:
+<a href="#tree_click">click</a>
+/ <a href="#tree_positions">positions</a>
+/ <a href="#tree_search">search</a>
+/ <a href="#tree_size">size</a>
+/ <a href="#tree_write">write</a>
+</p>
+<p>
+This group contains commands for tree searches.
+</p>
+
+<h4><a name="tree_click">sc_tree click <i>line</i></a></h4>
+<p>
+Process a click on the tree line number <i>line</i>, selecting that
+move and adding it to the game.
+</p>
+
+<h4><a name="tree_positions">sc_tree positions</a></h4>
+<p>
+Returns the number of cached positions in the tree cache.
+</p>
+
+<h4><a name="tree_search">sc_tree search [-sort alpha|eco|frequency|score] [-time <i>time</i>:boolean]</a></h4>
+<p>
+Performs a tree search, finding all games with the current positions
+and producing statistics about the moves played from this position.
+Updates the <a href="#progressBar">progress bar</a> if applicable.
+</p><p>
+The default sorting method is by frequency.
+If the -time option is specified, the boolean value indicates whether
+to print time information at the end if the tree output.
+</p>
+
+<h4><a name="tree_size">sc_tree size</a></h4>
+<p>
+Returns the capacity (maximum number of positions) of the tree cache.
+</p>
+
+<h4><a name="tree_write">sc_tree write</a></h4>
+<p>
+Writes the tree cache file for the current database. Returns the
+number of positions in the cache, or an error message.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="var">sc_var</a></h2>
+
+<p>
+Commands:
+<a href="#var_count">count</a>
+/ <a href="#var_create">create</a>
+/ <a href="#var_delete">delete</a>
+/ <a href="#var_enter">enter</a>
+/ <a href="#var_exit">exit</a>
+/ <a href="#var_first">first</a>
+/ <a href="#var_level">level</a>
+/ <a href="#var_list">list</a>
+/ <a href="#var_moveInto">moveInto</a>
+/ <a href="#var_promote">promote</a>
+</p>
+<p>
+This group contains commands for handling variations.
+</p>
+
+<h4><a name="var_count">sc_var count</a></h4>
+<p>
+Returns the number of variations of the current move.
+</p>
+
+<h4><a name="var_create">sc_var create</a></h4>
+<p>
+Creates a new variation for the current move. Never returns
+an error, even if a variation cannot be created (which only
+happens when already at the end of an empty variation).
+</p>
+
+<h4><a name="var_delete">sc_var delete <i>varNumber</i></a></h4>
+<p>
+Deletes variation <i>varNumber</i> of the current move.
+</p>
+
+<h4><a name="var_enter">sc_var enter <i>varNumber</i></a></h4>
+<p>
+Enters the variation <i>varNumber</i> of the current move.
+</p>
+
+<h4><a name="var_exit">sc_var exit</a></h4>
+<p>
+Exits the current variation.
+</p>
+
+<h4><a name="var_first">sc_var first <i>varNumber</i></a></h4>
+<p>
+Moves the variation <i>varNumber</i> of the current move to the
+be first in the list.
+</p>
+
+<h4><a name="var_level">sc_var level</a></h4>
+<p>
+Returns the current variation depth, where 0 indicates the
+main line of the game.
+</p>
+
+<h4><a name="var_list">sc_var list</a></h4>
+<p>
+Returns a Tcl list of the first moves of each variation of the
+current move. Each variation with no move is represented by an
+empty string in the list.
+</p>
+
+<h4><a name="var_moveInto">sc_var moveInto <i>varNumber</i></a></h4>
+<p>
+The old name for <a href="#var_enter">sc_var enter</a>.
+It is deprecated and will be removed in a future version.
+</p>
+
+<h4><a name="var_promote">sc_var promote <i>varNumber</i></a></h4>
+<p>
+Promotes the specified variation of the current move by swapping it
+with the current move.
+</p>
+
+
+<!-- ************************************************************ -->
+
+<h2><a name="string">Extra string commands</a></h2>
+
+<p>
+Commands:
+<a href="#strIsPrefix">strIsPrefix</a>
+/ <a href="#strPrefixLen">strPrefixLen</a>
+</p>
+<p>
+These commands implement a couple of string functions I needed to
+have that were not available in Tcl, and would have been far
+slower if written in Tcl instead of C++.
+</p>
+
+<h4><a name="strIsPrefix">strIsPrefix <i>short</i> <i>long</i></a></h4>
+<p>
+Returns a boolean value indicating if <i>short</i> is a prefix 
+of <i>long</i>.
+</p>
+
+<h4><a name="strPrefixLen">strPrefixLen <i>s1</i> <i>s2</i></a></h4>
+<p>
+Returns the length of the common prefix of <i>s1</i> and <i>s2</i>.
+</p>
+
+<hr>
+
+</body></html>

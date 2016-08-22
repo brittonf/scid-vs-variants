@@ -1,0 +1,135 @@
+This embeds the Best Games into the Tree window
+Seems to go ok, but i seem to prefer having separate toplevels.
+It'd probably be nicer with context menus for the 'Load', 'Browse', etc instead of buttons.
+
+--- tcl/windows/tree.tcl	2012-02-03 18:59:13.000000000 +1000
++++ tcl/windows/tree+best.tcl	2012-02-03 18:54:12.000000000 +1000
+@@ -259,7 +259,7 @@
+ 
+   wm minsize $w 40 5
+ 
+-  wm protocol $w WM_DELETE_WINDOW " .treeWin$baseNumber.buttons.close invoke "
++  wm protocol $w WM_DELETE_WINDOW ".treeWin$baseNumber.buttons.close invoke"
+   ::tree::refresh $baseNumber
+   set ::tree::cachesize($baseNumber) [lindex [sc_tree cacheinfo $baseNumber] 1]
+ }
+@@ -290,10 +290,6 @@
+ 
+   wm protocol .treeWin$baseNumber WM_DELETE_WINDOW {}
+   ::tree::mask::close .treeWin$baseNumber
+-  # needs closing explicitly if based open as tree and bestgames is open
+-  if {[winfo exists .treeBest$baseNumber]} {
+-    destroy .treeBest$baseNumber
+-  }
+ 
+   ::tree::hideCtxtMenu $baseNumber
+   .treeWin$baseNumber.buttons.stop invoke
+@@ -315,9 +311,6 @@
+   if {$::tree(locked$baseNumber)} {
+     ::file::Close $baseNumber
+   } else {
+-    if {[winfo exists .treeBest$baseNumber]} {
+-      destroy .treeBest$baseNumber
+-    }
+     destroy .treeWin$baseNumber
+   }
+   sc_tree clean $baseNumber
+@@ -529,7 +522,7 @@
+   if { $moves == "canceled" } { return "canceled"}
+   displayLines $baseNumber $moves
+ 
+-  if {[winfo exists .treeBest$baseNumber]} {::tree::best $baseNumber}
++  if {[winfo exists .treeWin$baseNumber.best]} {::tree::best $baseNumber}
+ 
+   # ========================================
+   if { $tree(fastmode$baseNumber) == 2 } {
+@@ -998,7 +991,7 @@
+ #
+ 
+ proc ::tree::toggleBest { baseNumber } {
+-  set w .treeBest$baseNumber
++  set w .treeWin$baseNumber.best
+   if {[winfo exists $w]} {
+     destroy $w
+   } else {
+@@ -1008,22 +1001,20 @@
+ 
+ proc ::tree::best { baseNumber } {
+   global tree
+-  set w .treeBest$baseNumber
++
++  set w .treeWin$baseNumber.best
+   if {! [winfo exists .treeWin$baseNumber]} { return }
++
+   # Hmmm... listbox widgets seem to clash, so need this hack
+   if {[winfo exists .variations]} { return }
++
+   if {! [winfo exists $w]} {
+-    toplevel $w
+-    wm title $w "Scid: $::tr(TreeBestGames) \[[file tail [sc_base filename $baseNumber]]\]"
+-    setWinLocation $w
+-    setWinSize $w
+-    bind $w <Escape> "destroy $w"
+-    bind $w <F1> {helpWindow Tree Best}
++    pack [frame $w] -side bottom -fill both -expand 1
+     pack [frame $w.b] -side bottom -fill x
+     frame $w.blist
+     pack $w.blist -side top -expand true -fill both
+     scrollbar $w.blist.ybar -command "$w.blist.list yview" -takefocus 0
+-    listbox $w.blist.list  -yscrollcommand "$w.blist.ybar set" -font font_Fixed
++    listbox $w.blist.list  -yscrollcommand "$w.blist.ybar set" -font font_Fixed -height 3
+     pack $w.blist.ybar -side right -fill y
+     pack $w.blist.list -side left -fill both -expand yes
+     bind $w.blist.list <<ListboxSelect>> "::tree::bestPgn $baseNumber"
+@@ -1036,13 +1027,10 @@
+     button $w.b.browse -text $::tr(BrowseGame) -command "::tree::bestBrowse $baseNumber"
+     button $w.b.load -text $::tr(LoadGame) -command "::tree::bestLoad $baseNumber"
+     button $w.b.merge -text $::tr(MergeGame) -command "::tree::bestMerge $baseNumber"
+-    button $w.b.close -text $::tr(Close) -command "destroy $w" -width 9
+-    foreach i {browse load merge close} { $w.b.$i configure -font font_Small }
++    foreach i {browse load merge} { $w.b.$i configure -font font_Small }
+     pack $w.b.browse $w.b.load $w.b.merge -side left -padx 5 -pady 5
+-    pack $w.b.close -side right -padx 5 -pady 5
+     pack $w.b.result $w.b.res -side left -padx 5 -pady 5
+-    bind $w <Configure> "recordWinSize $w"
+-    focus $w.blist.list
++    # focus $w.blist.list
+   }
+   $w.blist.list delete 0 end
+   set tree(bestList$baseNumber) {}
+@@ -1062,7 +1050,7 @@
+ ################################################################################
+ proc ::tree::bestLoad { baseNumber } {
+   global tree
+-  if {[catch {set sel [.treeBest$baseNumber.blist.list curselection]}]} { return }
++  if {[catch {set sel [.treeWin$baseNumber.best.blist.list curselection]}]} { return }
+   if {[catch {set g [lindex $tree(bestList$baseNumber) $sel]}]} { return }
+   # if {$tree(locked$baseNumber)} { sc_base switch $tree(base$baseNumber) }
+   sc_base switch $tree(base$baseNumber)
+@@ -1072,7 +1060,7 @@
+ ################################################################################
+ proc ::tree::bestMerge { baseNumber } {
+   global tree
+-  if {[catch {set sel [.treeBest$baseNumber.blist.list curselection]}]} { return }
++  if {[catch {set sel [.treeWin$baseNumber.best.blist.list curselection]}]} { return }
+   if {[catch {set gnum [lindex $tree(bestList$baseNumber) $sel]}]} { return }
+   set base $baseNumber
+   if {$tree(locked$baseNumber)} { set base $tree(base$baseNumber) }
+@@ -1082,7 +1070,7 @@
+ ################################################################################
+ proc ::tree::bestBrowse { baseNumber } {
+   global tree
+-  if {[catch {set sel [.treeBest$baseNumber.blist.list curselection]}]} { return }
++  if {[catch {set sel [.treeWin$baseNumber.best.blist.list curselection]}]} { return }
+   if {[catch {set gnum [lindex $tree(bestList$baseNumber) $sel]}]} { return }
+   set base $baseNumber
+   if {$tree(locked$baseNumber)} { set base $tree(base$baseNumber) }
+@@ -1092,7 +1080,7 @@
+ ################################################################################
+ proc ::tree::bestPgn { baseNumber } {
+   global tree
+-  if {[catch {set sel [.treeBest$baseNumber.blist.list curselection]}]} { return }
++  if {[catch {set sel [.treeWin$baseNumber.best.blist.list curselection]}]} { return }
+   if {[catch {set g [lindex $tree(bestList$baseNumber) $sel]}]} { return }
+ 
+   set base $baseNumber

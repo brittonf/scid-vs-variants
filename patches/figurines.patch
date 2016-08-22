@@ -1,0 +1,277 @@
+Make PGN window have chess figurines 25/06/2011 stevenaaus
+
+This code (from Ileano) makes use of Chess Assistant's chess font to display
+Chess Figures in the PGN window.  You must download the font
+  http://chessok.com/download/PRG55CHE.TTF
+  (from http://chessok.com/?page_id=20905)
+then apply this patch, recompile, then select the "CA Chess" font from
+Options->Fonts->Regular and press "OK"
+
+Index: scidvspc/src/game.cpp
+===================================================================
+--- scidvspc/src/game.cpp	(revision 593)
++++ scidvspc/src/game.cpp	(working copy)
+@@ -32,6 +32,10 @@
+ #  include <string.h>
+ #endif
+ 
++int  chessCount = 1;   //for DEBUG only
++int  usingChessFont= '?';  //ADDED MODIF
++bool IsUsingChessFont () { return (usingChessFont != false); }
++
+ // Piece letters translation
+ int language = 0; // default to english
+ //  0 = en, 1 = fr, 2 = es, 3 = de, 4 = it, 5 = ne, 6 = cz
+@@ -2227,11 +2231,17 @@
+ 		tb->PrintString (nextColumn);
+ 		tb->ResumeTranslations();
+ 	    }
++
++	    // NEW HACK
++	    if (IsColorFormat() && IsUsingChessFont())
++		tb->PrintWord4Move (m->san);
++	    else {
+ 	    // translate pieces
+ 	    strcpy(tempTrans, m->san);
+ 	    transPieces(tempTrans);
+ 	    //tb->PrintWord (m->san);
+ 	    tb->PrintWord (tempTrans);
++	    }
+ 	    colWidth -= strLength (m->san);
+ 	    if (IsColorFormat()) {
+ 		tb->PrintString ("</m>");
+Index: scidvspc/src/textbuf.h
+===================================================================
+--- scidvspc/src/textbuf.h	(revision 593)
++++ scidvspc/src/textbuf.h	(working copy)
+@@ -96,6 +96,7 @@
+     errorT   Indent();
+     errorT   PrintLine (const char * str);
+     errorT   PrintWord (const char * str);
++    errorT   PrintWord4Move (const char * str);
+     errorT   PrintString (const char * str);
+     errorT   PrintSpace ();
+     errorT   PrintChar (char b);
+Index: scidvspc/src/textbuf.cpp
+===================================================================
+--- scidvspc/src/textbuf.cpp	(revision 593)
++++ scidvspc/src/textbuf.cpp	(working copy)
+@@ -178,6 +178,65 @@
+     return OK;
+ }
+ 
++errorT
++TextBuffer::PrintWord4Move (const char * str)
++{
++    ASSERT(Current != NULL);
++    uint length = strLength (str);
++
++    uint figDefs = 1;
++    if (figDefs)  {
++        // changed some glyph codes to avoid bad chars in PGN window
++        AddTranslation (164, "¤"); //N
++        AddTranslation (163, "£"); //Q
++        AddTranslation (188, "¢"); //King glyph=162 in CA Chess font
++        AddTranslation (165, "¥"); // B
++        AddTranslation (189, "¦"); //Rook glyph=166 in CA Chess font
++        //AddTranslation (167, "§"); //P
++        figDefs = 0;
++    }
++
++    if (Column + length >= WrapColumn)    { NewLine(); }
++    if (ByteCount + length >= BufferSize) { return ERROR_BufferFull; }
++    while (*str != 0) {
++        char ch = *str;
++	if (ch == 'K') {
++            ch = 188;
++        } else if (ch == 'Q') {
++            ch = 163;
++        } else if (ch == 'R') {
++            ch = 189;
++        } else if (ch == 'B') {
++            ch = 165;
++        } else if (ch == 'N') {
++            ch = 164;
++        } else if (ch == 'P') {
++            ch = 167;
++        }
++        // Hack to work around Tcl/Tk Unicode system:
++        // It seems to store umlauts, accents etc as the ASCII
++        // decimal code 195, followed by the character code minus 64.
++        if ((byte)ch == 195) {
++            char ch2 = *(str+1);
++            if ((byte)ch > 127) {
++                str++;
++                ch = ch2 + 64;
++            }
++        } 
++// New
++    
++
++	
++
++        AddChar (ch);
++        str++;
++        Column++;
++    }
++    *Current = 0;  // add trailing end-of-string to buffer
++    LineIsEmpty = 0;
++    return OK;
++}
++
+ //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ //### TextBuffer::PrintSpace(): Prints a space OR a newline character,
+ //     but not both.
+Index: scidvspc/src/game.h
+===================================================================
+--- scidvspc/src/game.h	(revision 593)
++++ scidvspc/src/game.h	(working copy)
+@@ -596,6 +596,9 @@
+     return OK;
+ }
+ 
++extern  int  usingChessFont;  //ADDED MODIF
++bool    IsUsingChessFont ();
++
+ #endif  // #ifndef SCID_GAME_H
+ 
+ //////////////////////////////////////////////////////////////////////
+Index: scidvspc/src/tkscid.cpp
+===================================================================
+--- scidvspc/src/tkscid.cpp	(revision 620)
++++ scidvspc/src/tkscid.cpp	(working copy)
+@@ -45,6 +45,8 @@
+ static const uint REPORT_PLAYER = 1;
+ 
+ static char decimalPointChar = '.';
++extern int  usingChessFont;
++
+ static uint htmlDiagStyle = 0;
+ 
+ // Default maximum number of games in the clipbase database:
+@@ -9438,13 +9440,13 @@
+     static const char * options [] = {
+         "asserts", "clipbase", "decimal", "fsize", "gzip",
+         "html", "limit", "preMoveCmd", "priority", "ratings",
+-        "suffix", "tb", "validDate", "version", "pocket", "pocket_priority", "logmem", "language", NULL
++        "suffix", "tb", "validDate", "version", "pocket", "pocket_priority", "logmem", "language", "chessFont", NULL
+     };
+     enum {
+         INFO_ASSERTS, INFO_CLIPBASE, INFO_DECIMAL, INFO_FSIZE, INFO_GZIP,
+         INFO_HTML, INFO_LIMIT, INFO_PREMOVECMD, INFO_PRIORITY, INFO_RATINGS,
+         INFO_SUFFIX, INFO_TB, INFO_VALIDDATE, INFO_VERSION, INFO_POCKET,
+-        INFO_POCKET_PRIORITY, INFO_LOGMEM, INFO_LANGUAGE
++        INFO_POCKET_PRIORITY, INFO_LOGMEM, INFO_LANGUAGE, INFO_CHESSFONT
+     };
+     int index = -1;
+ 
+@@ -9465,6 +9467,12 @@
+         }
+         break;
+ 
++    case INFO_CHESSFONT:
++        if (argc >= 3) {
++            usingChessFont = strGetUnsigned (argv[2]);
++        }
++        break;
++
+     case INFO_FSIZE:
+         return sc_info_fsize (cd, ti, argc, argv);
+ 
+@@ -15617,6 +15625,9 @@
+     dEloRange[0] = - (int)MAX_ELO;
+     dEloRange[1] = MAX_ELO;
+ 
++    uint pgnRange [2];   //MODIF ADDED
++    pgnRange[0] = pgnRange[1] = 0;  //MODIF ADDED
++
+     bool * wTitles = NULL;
+     bool * bTitles = NULL;
+ 
+@@ -15678,7 +15689,7 @@
+         "fMiddlegame", "fEndgame", "fNovelty", "fPawnStructure",
+         "fTactics", "fKingside", "fQueenside", "fBrilliancy", "fBlunder",
+         "fUser", "fCustom1" , "fCustom2" , "fCustom3" ,
+-        "fCustom4" , "fCustom5" , "fCustom6" , "pgn", NULL
++        "fCustom4" , "fCustom5" , "fCustom6" , "pgn", "pgnRange", NULL
+     };
+     enum {
+         OPT_WHITE, OPT_BLACK, OPT_EVENT, OPT_SITE, OPT_ROUND,
+@@ -15690,7 +15701,7 @@
+         OPT_FMIDDLEGAME, OPT_FENDGAME, OPT_FNOVELTY, OPT_FPAWNSTRUCT,
+         OPT_FTACTICS, OPT_FKSIDE, OPT_FQSIDE, OPT_FBRILLIANCY, OPT_FBLUNDER,
+         OPT_FUSER, OPT_FCUSTOM1, OPT_FCUSTOM2, OPT_FCUSTOM3,
+-        OPT_FCUSTOM4,  OPT_FCUSTOM5, OPT_FCUSTOM6, OPT_PGN
++        OPT_FCUSTOM4,  OPT_FCUSTOM5, OPT_FCUSTOM6, OPT_PGN, OPT_PGNRANGE
+     };
+ 
+     int arg = 2;
+@@ -15833,6 +15844,10 @@
+             }
+             break;
+ 
++	case OPT_PGNRANGE: //MODIF ADDED
++	     strGetUnsigneds (value, pgnRange, 2);
++	     break;
++
+         default:
+             return InvalidCommand (ti, "sc_search material", options);
+         }
+@@ -16198,7 +16213,11 @@
+                 scratchGame->AddPgnStyle (PGN_STYLE_VARS);
+                 scratchGame->AddPgnStyle (PGN_STYLE_SYMBOLS);
+                 scratchGame->SetPgnFormat (PGN_FORMAT_Plain);
+-                scratchGame->WriteToPGN(db->tbuf);
++
++                // MODIF scratchGame->WriteToPGN(db->tbuf);
++                // printf("PgnRange= %d %d\n",pgnRange[0], pgnRange[1]);
++                scratchGame->MoveToLocationInPGN(db->tbuf, pgnRange[1]); //MODIF ADDED
++
+                 const char * buf = db->tbuf->GetBuffer();
+                 for (int m=0; m < pgnTextCount; m++) {
+                    if (match) { match = strContains (buf, sPgnText[m]); }
+Index: scidvspc/tcl/utils/font.tcl
+===================================================================
+--- scidvspc/tcl/utils/font.tcl	(revision 593)
++++ scidvspc/tcl/utils/font.tcl	(working copy)
+@@ -262,6 +262,9 @@
+   set fontOptions(temp) [FontDialog Regular $parent]
+   if {$fontOptions(temp) != {}} { set fontOptions(Regular) $fontOptions(temp) }
+ 
++  updateChessFontInfo
++  ::pgn::Refresh 1
++
+   set font [font configure font_Regular -family]
+   set fontsize [font configure font_Regular -size]
+   font configure font_Bold -family $font -size $fontsize
+Index: scidvspc/tcl/start.tcl
+===================================================================
+--- scidvspc/tcl/start.tcl	(revision 624)
++++ scidvspc/tcl/start.tcl	(working copy)
+@@ -1245,6 +1245,26 @@
+ font create font_SmallBold -family $font -size $fontsize -weight bold
+ font create font_SmallItalic -family $font -size $fontsize -slant italic
+ 
++### MODIF 
++### Procedures for custom CA Chess font in PGN window
++
++# chess font info
++proc useChessFont {} {
++       return   [string first "chess" [string tolower [font configure font_Regular -family]]]
++}
++
++proc updateChessFontInfo {} {
++       if { [useChessFont] != -1} {
++       # Using chess font
++               sc_info "chessFont" 1
++       } else {
++               sc_info "chessFont" 0
++       }
++}
++
++updateChessFontInfo
++
++
+ ## ttk init
+ # Gregor's code to give readonly combos/enrties/spinboxes a non-grey background
+ set fbg {}

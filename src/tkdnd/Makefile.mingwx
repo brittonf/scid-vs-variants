@@ -1,0 +1,44 @@
+ifeq ($(W64),1)
+WIN_TARGET=win64
+else
+WIN_TARGET=win32
+endif
+
+# Tcl/Tk version: it should be "85" for Tcl/Tk 8.5, etc.
+TCL_VERSION=85
+
+ifeq ($(WIN_TARGET),win64)
+TCL_DIR=/opt/cross_tcl64
+MINGW_TARGET=x86_64-w64-mingw32
+else
+TCL_DIR=/usr/local/cross-tcl
+#MINGW_TARGET=i686-pc-mingw32
+MINGW_TARGET=i686-w64-mingw32
+endif
+
+### Compiler and linker
+CXX=$(MINGW_TARGET)-g++
+CC=$(MINGW_TARGET)-gcc
+LINK=$(CXX)
+
+.PHONY : clean
+.PRECIOUS:
+
+EXTRA_CFLAGS	= -pipe -Wno-format-security
+
+.SUFFIXES: .c
+.PRECIOUS:
+
+CXXFLAGS += $(OPTIMIZE) $(EXTRA_CFLAGS) $(C_DEBUG) $(PROFILING)
+
+SRC	= win/TkDND_OleDND.cpp
+OBJS	= $(SRC:.c=.o)
+
+all: win/TkDND_OleDND.o
+
+clean:
+	rm -f TkDND_OleDND.o
+
+.cpp.o:
+	$(CXX) $(CXXFLAGS) -I$(TCL_DIR)/include -c $<
+

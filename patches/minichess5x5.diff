@@ -1,0 +1,214 @@
+Index: src/recog.cpp
+===================================================================
+--- src/recog.cpp	(revision 1592)
++++ src/recog.cpp	(working copy)
+@@ -341,7 +341,7 @@
+     // OK, we have it set up so white has the bishop and pawns, and we
+     // know all pawns are on the wrong rook-pawn file. So recognise a
+     // draw if the black king controls the queening square:
+-    squareT promoSq = square_Make (wrongFile, RANK_8);
++    squareT promoSq = square_Make (wrongFile, RANK_6);
+     if (bk == promoSq  ||  square_Adjacent (bk, promoSq)) { return DRAW; }
+     // The black king does not control the queening square, so no draw yet:
+     return UNKNOWN;
+Index: src/game.cpp
+===================================================================
+--- src/game.cpp	(revision 1592)
++++ src/game.cpp	(working copy)
+@@ -694,6 +694,9 @@
+     // Set up standard start
+     CurrentPos->StdStart();
+     KeepDecodedMoves = true;
++
++    // Minichess has to set Nonstandard Start for chess engines.
++    SetStartPos (CurrentPos);
+ }
+ 
+ //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Index: src/position.cpp
+===================================================================
+--- src/position.cpp	(revision 1592)
++++ src/position.cpp	(working copy)
+@@ -410,7 +410,7 @@
+ Position::AddPromotions (MoveList * mlist, squareT from, squareT dest)
+ {
+     ASSERT (piece_Type (Board[from]) == PAWN);
+-    ASSERT (square_Rank (dest) == RANK_1  ||  square_Rank (dest) == RANK_8);
++    ASSERT (square_Rank (dest) == RANK_2  ||  square_Rank (dest) == RANK_6);
+ 
+     AddLegalMove (mlist, from, dest, QUEEN);
+     AddLegalMove (mlist, from, dest, ROOK);
+@@ -469,9 +469,9 @@
+     rankT promoRank;
+     rankT secondRank;
+     if (ToMove == WHITE) {
+-        forward = UP;    promoRank = RANK_8;  secondRank = RANK_2;
++        forward = UP;    promoRank = RANK_6;  secondRank = RANK_1;
+     } else  {
+-        forward = DOWN;  promoRank = RANK_1;  secondRank = RANK_7;
++        forward = DOWN;  promoRank = RANK_2;  secondRank = RANK_8;
+     }
+     squareT dest;
+ 
+@@ -674,6 +674,7 @@
+         }
+         memcpy (this, startPositionTemplate, sizeof(Position));
+ 	}
++	ReadFromFEN("8/8/1rnbqk2/1ppppp2/8/1PPPPP2/1RNBQK2/8 w - - 0 1");
+     return;
+ }
+ 
+@@ -683,13 +684,14 @@
+ bool
+ Position::IsStdStart ()
+ {
+-    if (ToMove != WHITE
+-          ||  Hash != stdStartHash  ||  PawnHash != stdStartPawnHash
+-          ||  GetCount(WHITE) != 16  ||  GetCount(BLACK) != 16
+-          ||  RankCount(WP,RANK_2) != 8  ||  RankCount(BP,RANK_7) != 8
+-          ||  RankCount(WN,RANK_1) != 2  ||  RankCount(BN,RANK_8) != 2
+-          ||  !GetCastling(WHITE,KSIDE)  ||  !GetCastling(WHITE,QSIDE)
+-          ||  !GetCastling(BLACK,KSIDE)  ||  !GetCastling(BLACK,QSIDE)) {
++    if (ToMove != WHITE) 
++        //  ||  Hash != stdStartHash  ||  PawnHash != stdStartPawnHash
++         // ||  GetCount(WHITE) != 16  ||  GetCount(BLACK) != 16
++         // ||  RankCount(WP,RANK_2) != 8  ||  RankCount(BP,RANK_7) != 8
++         // ||  RankCount(WN,RANK_1) != 2  ||  RankCount(BN,RANK_8) != 2
++         // ||  !GetCastling(WHITE,KSIDE)  ||  !GetCastling(WHITE,QSIDE)
++         // ||  !GetCastling(BLACK,KSIDE)  ||  !GetCastling(BLACK,QSIDE)) 
++	{
+         return false;
+     }
+     return true;
+@@ -952,7 +954,7 @@
+             }
+         }
+         // Check the promotion piece:
+-        if (rto == RANK_8) {
++        if (rto == RANK_6) {
+             pieceT p = sm->promote;
+             if (p != QUEEN  &&  p != ROOK  &&  p != BISHOP  &&  p != KNIGHT) {
+                 return false;
+@@ -1142,7 +1144,7 @@
+     pieceT pawn;
+     rankT toRank = square_Rank(to);
+     fyleT toFyle = square_Fyle(to);
+-    rankT promoteRank = (ToMove == WHITE ? RANK_8 : RANK_1);
++    rankT promoteRank = (ToMove == WHITE ? RANK_6 : RANK_2);
+ 
+     // from is the from square; backup is the alternative from square
+     // for a pawn move two squares forward.
+@@ -1151,16 +1153,16 @@
+ 
+     if (ToMove == WHITE) {
+         pawn = WP;
+-        promoteRank = RANK_8;
+-        if (toRank < RANK_3) { return ERROR_InvalidMove; }
++        promoteRank = RANK_6;
++        //if (toRank < RANK_4) { return ERROR_InvalidMove; }
+         from = square_Make(fromFyle, toRank - 1);
+-        if (toRank == RANK_4  &&  fromFyle == toFyle) { backup = to - 16; }
++        if (toRank == RANK_5  &&  fromFyle == toFyle) { backup = to - 16; }
+     } else {
+         pawn = BP;
+-        promoteRank = RANK_1;
+-        if (toRank > RANK_6) { return ERROR_InvalidMove; }
++        promoteRank = RANK_2;
++        //if (toRank > RANK_4) { return ERROR_InvalidMove; }
+         from = square_Make(fromFyle, toRank + 1);
+-        if (toRank == RANK_5  &&  fromFyle == toFyle) { backup = to + 16; }
++        if (toRank == RANK_3  &&  fromFyle == toFyle) { backup = to + 16; }
+     }
+ 
+     // See if the promotion piece is valid:
+@@ -1530,7 +1532,7 @@
+ 
+     // Now pawn attacks:
+     if (side == WHITE) {
+-        if (square_Rank(target) != RANK_1) {  //if (Material[WP] > 0) {
++        if (square_Rank(target) != RANK_2) {  //if (Material[WP] > 0) {
+             sq = square_Move (target, DOWN_LEFT);
+             if (Board[sq] == WP)  {
+                 fromSquares->Add(sq);
+@@ -1541,7 +1543,7 @@
+             }
+         }
+     } else {
+-        if (square_Rank(target) != RANK_8) {  //if (Material[BP] > 0) {
++        if (square_Rank(target) != RANK_6) {  //if (Material[BP] > 0) {
+             sq = square_Move (target, UP_LEFT);
+             if (Board[sq] == BP)  {
+                 fromSquares->Add(sq);
+@@ -1801,10 +1803,10 @@
+     squareT stmKing = GetKingSquare();
+     squareT enemyKing = GetEnemyKingSquare();
+     if (square_Adjacent (stmKing, enemyKing)) { printf ("Kings adjacent\n"); return false; }
+-    if (RankCount (WP, RANK_1) != 0) { return false; }
+-    if (RankCount (WP, RANK_8) != 0) { return false; }
+-    if (RankCount (BP, RANK_1) != 0) { return false; }
+-    if (RankCount (BP, RANK_8) != 0) { return false; }
++    if (RankCount (WP, RANK_2) != 0) { return false; }
++    if (RankCount (WP, RANK_6) != 0) { return false; }
++    if (RankCount (BP, RANK_2) != 0) { return false; }
++    if (RankCount (BP, RANK_6) != 0) { return false; }
+     if (CalcAttacks (ToMove, enemyKing, NULL) > 0) {
+          return false;
+     }
+@@ -1822,8 +1824,8 @@
+ {
+     rankT seventh, eighth;
+     pieceT pawn;
+-    if (ToMove == WHITE) { seventh = RANK_7; eighth = RANK_8; pawn = WP; }
+-    else { seventh = RANK_2; eighth = RANK_1; pawn = BP; }
++    if (ToMove == WHITE) { seventh = RANK_5; eighth = RANK_6; pawn = WP; }
++    else { seventh = RANK_3; eighth = RANK_2; pawn = BP; }
+     rankT fromR, toR;
+     fromR = square_Rank(from);
+     toR = square_Rank(to);
+@@ -2188,7 +2190,7 @@
+         }
+         *c++ = square_FyleChar(to);
+         *c++ = square_RankChar(to);
+-        if ((square_Rank(to)==RANK_1) || (square_Rank(to)==RANK_8)) {
++        if ((square_Rank(to)==RANK_2) || (square_Rank(to)==RANK_6)) {
+             *c++ = '=';
+             *c++ = piece_Char(m->promote);
+         }
+@@ -2303,7 +2305,7 @@
+     *c++ = square_FyleChar(to);
+     *c++ = square_RankChar(to);
+     if (p == PAWN) {
+-        if ((square_Rank(to)==RANK_1) || (square_Rank(to)==RANK_8)) {
++        if ((square_Rank(to)==RANK_2) || (square_Rank(to)==RANK_6)) {
+             *c++ = piece_Char(m->promote);
+         }
+     }
+Index: tcl/help/help.tcl
+===================================================================
+--- tcl/help/help.tcl	(revision 1592)
++++ tcl/help/help.tcl	(working copy)
+@@ -5,6 +5,7 @@
+ append helpText(Contents) {
+ 
+   <ht><img icon></ht>
++  <ht><url http://membres-lig.imag.fr/prost/MiniChessResolution/>Mini Chess Homepage</url></ht>
+   <ht><a Intro>Introduction</a></ht>
+   <ht><a ComputerGame>Playing against the Computer</a></ht>
+   <ht><a FICS>Playing on the Internet (FICS)</a></ht>
+Index: tcl/start.tcl
+===================================================================
+--- tcl/start.tcl	(revision 1592)
++++ tcl/start.tcl	(working copy)
+@@ -43,10 +43,10 @@
+ 
+ if {![catch {tk windowingsystem} wsystem] && $wsystem == "aqua"} {
+   set macOS 1
+-  set scidName {Scid vs. Mac}
++  set scidName {Scid vs. Mac 5x5}
+ } else {
+   set macOS 0
+-  set scidName {Scid vs. PC}
++  set scidName {Scid vs. PC 5x5}
+ }
+ 
+ # See if we're inside a Mac .app bundle.  This duplcates part of the command-line

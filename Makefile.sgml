@@ -1,0 +1,7 @@
+.PHONY: html text
+all:	htm text
+html htm:
+	sgml2html -s 0 -T 2 README.sgml 2>/dev/null
+	cat images/sf_logo.txt >> README.html
+text txt:
+	sgml2rawtxt README

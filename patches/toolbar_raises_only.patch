@@ -1,0 +1,212 @@
+This patch makes the toolbar only Raise windows, not toggle them.
+The reason it is not implemented is that many window managers have 
+focus stealing prevention, and applying this patch would make
+it impossible to use the toolbar to find an already open window.
+
+Index: tcl/file/maint.tcl
+===================================================================
+--- tcl/file/maint.tcl	(revision 1238)
++++ tcl/file/maint.tcl	(working copy)
+@@ -93,17 +93,13 @@
+ 
+ ###   Database Maintenance window.
+ 
+-proc ::maint::OpenClose {{openonly 0}} {
++proc ::maint::OpenClose {} {
+   global maintWin maintFlag maintFlags maintFlaglist
+   set w .maintWin
+ 
+   if {[winfo exists $w]} {
+-    if {$openonly} {
+-      raiseWin $w
+-    } else {
+-      destroy $w
+-      set maintWin 0
+-    }
++    destroy $w
++    set maintWin 0
+     return
+   }
+   set maintWin 1
+Index: tcl/windows/tree.tcl
+===================================================================
+--- tcl/windows/tree.tcl	(revision 1238)
++++ tcl/windows/tree.tcl	(working copy)
+@@ -51,18 +51,14 @@
+   unbusyCursor .
+ }
+ 
+-proc ::tree::OpenClose {{openonly 0}} {
++proc ::tree::OpenClose {} {
+   global tree helpMessage
+ 
+   set baseNumber [sc_base current]
+   set w .treeWin$baseNumber
+ 
+   if {[winfo exists $w]} {
+-    if {$openonly} {
+-      raiseWin $w
+-    } else {
+-      ::tree::closeTree $baseNumber
+-    }
++    ::tree::closeTree $baseNumber
+     return
+   }
+ 
+Index: tcl/windows/pgn.tcl
+===================================================================
+--- tcl/windows/pgn.tcl	(revision 1238)
++++ tcl/windows/pgn.tcl	(working copy)
+@@ -72,18 +72,14 @@
+   }
+ 
+ 
+-  proc OpenClose {{openonly 0}} {
++  proc OpenClose {} {
+     global pgnWin pgnHeight pgnWidth pgnColor
+     set w .pgnWin
+ 
+     if {[winfo exists $w]} {
+-      if {$openonly} {
+-	raiseWin $w
+-      } else {
+-	focus .
+-	destroy $w
+-	set pgnWin 0
+-      }
++      focus .
++      destroy $w
++      set pgnWin 0
+       return
+     }
+     toplevel $w
+Index: tcl/windows/gamelist.tcl
+===================================================================
+--- tcl/windows/gamelist.tcl	(revision 1238)
++++ tcl/windows/gamelist.tcl	(working copy)
+@@ -222,7 +222,7 @@
+   recordWidths
+ }
+ 
+-proc ::windows::gamelist::OpenClose {{openonly 0}} {
++proc ::windows::gamelist::OpenClose {} {
+ 
+   ### ttk::style theme use alt
+   # default classic alt clam
+@@ -234,12 +234,8 @@
+   set w .glistWin
+ 
+   if {[winfo exists .glistWin]} {
+-    if {$openonly} {
+-      raiseWin $w
+-    } else {
+-      set ::windows::gamelist::isOpen 0
+-      destroy $w
+-    }
++    set ::windows::gamelist::isOpen 0
++    destroy $w
+     return
+   }
+ 
+Index: tcl/windows/eco.tcl
+===================================================================
+--- tcl/windows/eco.tcl	(revision 1238)
++++ tcl/windows/eco.tcl	(working copy)
+@@ -6,15 +6,11 @@
+ set ::windows::eco::count 0
+ set ::windows::eco::isOpen 0
+ 
+-proc ::windows::eco::OpenClose {{openonly 0}} {
++proc ::windows::eco::OpenClose {} {
+   set w .ecograph
+ 
+   if {[winfo exists $w]} {
+-    if {$openonly} {
+-      raiseWin $w
+-    } else {
+-      destroy $w
+-    }
++    destroy $w
+   } else {
+     ::windows::eco::Refresh
+   }
+Index: tcl/windows/book.tcl
+===================================================================
+--- tcl/windows/book.tcl	(revision 1238)
++++ tcl/windows/book.tcl	(working copy)
+@@ -101,18 +101,14 @@
+   #  Open a window to select book and display book moves
+   # arg name : gm2600.bin for example
+   ################################################################################
+-  proc OpenClose {{openonly 0}} {
++  proc OpenClose {} {
+     global ::book::bookList ::book::bookPath ::book::currentBook1 ::book::currentBook2 ::book::isOpen ::book::lastBook1 ::book::lastBook2
+ 
+     set w .bookWin
+ 
+     if {[winfo exists $w]} {
+-      if {$openonly} {
+-        raiseWin $w
+-      } else {
+-	destroy $w
+-	set ::book::isOpen 0
+-      }
++      destroy $w
++      set ::book::isOpen 0
+       return
+     }
+ 
+Index: tcl/tools/analysis.tcl
+===================================================================
+--- tcl/tools/analysis.tcl	(revision 1238)
++++ tcl/tools/analysis.tcl	(working copy)
+@@ -1938,11 +1938,6 @@
+       set n 0
+     }
+     set w .analysisWin$n
+-
+-    if {[winfo exists $w]} {
+-      raiseWin $w
+-      return
+-    } 
+   }
+ 
+ 
+Index: tcl/board.tcl
+===================================================================
+--- tcl/board.tcl	(revision 1238)
++++ tcl/board.tcl	(working copy)
+@@ -648,6 +648,8 @@
+   CSVxQ06rEQUAOw==
+ }
+ 
++### Toolbar
++
+ set tb .tb
+ frame $tb -relief raised -border 1
+ button $tb.new -image tb_new -command ::file::New
+@@ -686,15 +688,15 @@
+ button .tb.hsearch -image tb_hsearch -command ::search::header
+ button .tb.msearch -image tb_msearch -command ::search::material
+ frame .tb.space4 -width 12
+-button .tb.glist   -image tb_glist   -command {::windows::gamelist::OpenClose 1}
+-button .tb.pgn     -image tb_pgn     -command {::pgn::OpenClose 1}
+-button .tb.tmt     -image tb_tmt     -command ::tourney::Open
+-button .tb.comment -image tb_comment -command ::commenteditor::Open
+-button .tb.maint   -image tb_maint   -command {::maint::OpenClose 1}
+-button .tb.eco     -image tb_eco     -command {::windows::eco::OpenClose 1}
+-button .tb.tree    -image tb_tree    -command {::tree::OpenClose 1}
+-button .tb.book    -image tb_book    -command {::book::OpenClose 1}
+-button .tb.crosst  -image tb_crosst  -command ::crosstab::Open
++button .tb.glist   -image tb_glist   -command ::windows::gamelist::OpenClose
++button .tb.pgn     -image tb_pgn     -command ::pgn::OpenClose
++button .tb.tmt     -image tb_tmt     -command ::tourney::toggle
++button .tb.comment -image tb_comment -command makeCommentWin
++button .tb.maint   -image tb_maint   -command ::maint::OpenClose
++button .tb.eco     -image tb_eco     -command ::windows::eco::OpenClose
++button .tb.tree    -image tb_tree    -command ::tree::OpenClose
++button .tb.book    -image tb_book    -command ::book::OpenClose
++button .tb.crosst  -image tb_crosst  -command ::crosstab::OpenClose
+ button .tb.engine  -image tb_engine  -command {makeAnalysisWin -1}
+ 
+ # Set toolbar help status messages:

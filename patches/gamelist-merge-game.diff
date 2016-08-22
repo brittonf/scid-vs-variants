@@ -1,0 +1,15 @@
+Index: tcl/windows/gamelist.tcl
+===================================================================
+--- tcl/windows/gamelist.tcl	(revision 2324)
++++ tcl/windows/gamelist.tcl	(working copy)
+@@ -707,6 +707,10 @@
+     } else {
+     $menu add command -label $::tr(LoadGame) -command "$w.c.load invoke"
+     $menu add command -label $::tr(Browse) -command "$w.c.browse invoke"
++    $menu add command -label $::tr(MergeGame) -command {
++      set ::glNumber [.glistWin.tree set [.glistWin.tree selection] Number]
++      mergeGame 
++    }
+     $menu add command -label $::tr(GlistDeleteField) -command "$w.c.delete invoke"
+     $menu add cascade -label $::tr(Flag)      -menu $menu.flags
+     $menu add command -label $::tr(SetFilter) -command "$w.b.select invoke"

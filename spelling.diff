@@ -1,0 +1,224 @@
+--- spelling.ssp.diffme	2015-06-12 21:48:28.000000000 +1000
++++ spelling.ssp	2015-06-17 10:12:38.000000000 +1000
+@@ -5,6 +5,9 @@
+ # Spellcheck file for Scid with the
+ # FiDE ratings 05-2015 Last modified at 30-05-2015
+ #
++# Modified for Scid vs. PC by Stevenaaus, 12/06/2015
++# egrep -v 'Bio VIAF|Bio PND|Bio DSB|Bio BornCity|Bio Title|Bio ch-NED' spelling.ssp
++#
+ # Copyright (C) 2001-2015.
+ # Franz Nagl
+ # Heinz van Saanen
+@@ -102,6 +105,16 @@
+ @PLAYER "., -_*"
+ 
+ ### START OF PLAYER SECTION
++# Remove common Titles from prefixes
++%Prefix "GM " ""
++%Prefix "IM " ""
++%Prefix "FM " ""
++%Prefix "CM " ""
++%Prefix "WGM " ""
++
++%Prefix " " ""
++%Suffix " " ""
++
+ A F M, Mahfuzul Haque   #-   BAN [1771] ????
+    %Bio FIDEID 10201971
+    = A f m, Mahfuzul Haque
+@@ -14677,7 +14690,7 @@
+ Anand, Viswanathan      #gm  IND [2817] 1969
+    %Bio World Junior Champion (U20), 1987
+    %Bio FIDE World Champion 2000-2002
+-   %Bio World Champion 2007-
++   %Bio World Champion 2007-2013
+    %Bio FIDEID 5000017
+ Ananda Kr, Sahu         #-   IND [1779] 1975
+    %Bio FIDEID 35005006
+@@ -32918,12 +32931,12 @@
+    %Bio FIDEID 616150
+ Baron, Jens             #-   GER [1886] 1990
+    %Bio FIDEID 24664413
++Baron, Michael          #fm  AUS [2352] 1976
++   %Bio FIDEID 3202283
+ Baron, Marek            #-   GER [....] ????
+ Baron, Maria Camila     #w   COL [1633] 1999
+    %Bio FIDEID 4418140
+ Baron, Marian-Ovidiu    #-   FRA [....] ????
+-Baron, Michael          #fm  AUS [2352] 1976
+-   %Bio FIDEID 3202283
+ Baron, Michel           #-   FRA [1405] 1935
+    %Bio FIDEID 20623577
+ Baron, Premysl          #-   CZE [1930] 1979
+@@ -38583,6 +38596,7 @@
+ Bellin, Jana M          #wgm CZE/ENG [2340] 1947
+    %Bio FIDEID 402168
+    = Hartston-Miles-Bellin, Jana M
++   = Hartston, Jana
+    = Miles, Jana
+    = Bellin, Jana
+    = Malypetrova, Jana
+@@ -50335,6 +50349,8 @@
+    %Bio FIDEID 20693737
+ Bonhomme, Jean-Christophe  #-   FRA [1814] 1973
+    %Bio FIDEID 26082160
++Bonham, Kevin          #-   AUS [1910] 1972
++   %Bio FIDEID 3205649
+ Boni de Aristizabal, Marco  #-   ESP [1949] 1968
+    %Bio FIDEID 22219552
+    = Boni De Aristizabal, Marco
+@@ -65188,6 +65204,7 @@
+    %Bio FIDEID 1506870
+ Carlsen, Magnus         #gm  NOR [2882] 1990
+    %Bio FIDEID 1503014
++   %Bio World Champion 2013-
+ Carlsen, Tonny          #-   DEN [1839] 1985
+    %Bio FIDEID 1434160
+ Carlsen, Torben Erik    #cim BRA [....] ????
+@@ -84867,7 +84884,7 @@
+    %Bio FIDEID 1407384
+ Dalchow, Jonas          #-   GER [1803] 2001
+    %Bio FIDEID 12971251
+-Dale, Ari               #-   AUS [2321] 1998
++Dale, Ari               #im  AUS [2321] 1998
+    %Bio FIDEID 3213145
+ Dale, Colin             #-   JPN [2083] 1971
+    %Bio FIDEID 7000979
+@@ -141092,6 +141109,7 @@
+    %Bio FIDEID 2800713
+ Gluzman, Mikhail        #im  AUS [2447] 1967
+    %Bio FIDEID 3201783
++   = Gluzman, Michael
+ Gluzman, Sam            #-   AUS [1749] 1998
+    %Bio FIDEID 3215210
+ Glyakin, Andrei         #-   RUS [1555] 2003
+@@ -160270,6 +160288,7 @@
+    %Bio FIDEID 400262
+    = Hartston, William Roland
+    = Hartston, W R
++   = Hartston
+ Hartung, Jerry          #-   LUX [2230] 1979
+    %Bio FIDEID 4000480
+ Hartung, Katja          #w   GER [2042] 1982
+@@ -172187,6 +172206,7 @@
+ Hughes, Steve           #-   USA [2138] 1961
+    %Bio FIDEID 2017130
+    = Hughes, Stephen
++Hughes, Steven          #-   AUS [1490]
+ Hughes, Tyler B         #fm  USA [2312] 1990
+    %Bio FIDEID 2026775
+ Hughey, Leah            #w   CAN [1691] ????
+@@ -186196,6 +186216,7 @@
+ Jordan, William         #fm  AUS [2365] 1957
+    %Bio FIDEID 3200876
+    = Jordan, William J
++   = Jordan, Bill
+ Jordan, Wolfgang        #-   GER [2249] 1955
+    %Bio FIDEID 4650956
+ Jordana Vargas, Julio   #-   ESP [2004] 1974
+@@ -224956,6 +224977,7 @@
+ Lane, Gary W            #im  ENG/AUS [2464] 1964
+    %Bio FIDEID 3203301
+    = Lane, Gary William
++   = Lane, Gary
+    = Lane, G W
+ Lane, Hakan             #-   DEN [1929] 1975
+    %Bio FIDEID 1433695
+@@ -233069,6 +233091,7 @@
+    %Bio FIDEID 8601968
+ Li, Chao2               #gm  CHN [2748] 1989
+    %Bio FIDEID 8604436
++   = Li, Chao b
+ Li, Chin Chon           #-   MAC [1495] 2004
+    %Bio FIDEID 15400484
+ Li, Dariia              #w   KGZ [1506] ????
+@@ -281951,6 +281974,7 @@
+    %Bio FIDEID 2610981
+ Murray, Bruce D         #-   AUS [2169] 1959
+    %Bio FIDEID 3205177
++   = Murray, Bruce
+ Murray, Burn            #-   USA [2078] 1930
+    %Bio FIDEID 2017296
+ Murray, David           #-   IRL [2183] 1984
+@@ -416391,8 +416415,12 @@
+    %Bio FIDEID 30907616
+ Thomas, Ben             #-   WLS [1850] 2000
+    %Bio FIDEID 1801252
++Thomas, Brian           #-   AUS [1764] 1979
++   %Bio FIDEID 3212351
+ Thomas, Benjamin        #-   NZL [2038] 1946
+    %Bio FIDEID 4304144
++Thomas, Brian           #-   AUS [1764] 1979
++   %Bio FIDEID 3212351
+ Thomas, Daniel          #-   SCO [1832] 1996
+    %Bio FIDEID 2401525
+ Thomas, David           #-   LIB [2210] ????
+@@ -466845,6 +466873,9 @@
+ #   AUT  Austria
+ #   AZE  Azerbaijan
+ 
++%Prefix " " ""
++%Suffix " " ""
++
+ Curacao AHO
+ Willemstad AHO
+ 
+@@ -468323,28 +468354,14 @@
+ %Prefix "08. " "8. "
+ %Prefix "09. " "9. "
+ 
+-%Prefix "II "   "2. "
+-%Prefix "III "  "3. "
+-%Prefix "IV "   "4. "
+-%Prefix "V "    "5. "
+-%Prefix "VI "   "6. "
+-%Prefix "VII "  "7. "
+-%Prefix "VIII " "8. "
+-%Prefix "IX "   "9. "
+-
+-%Infix "1st " "1. "
+-%Infix "2nd " "2. "
+-%Infix "3rd " "3. "
+-%Infix "4th " "4. "
+-%Infix "5th " "5. "
+-%Infix "6th " "6. "
+-%Infix "7th " "7. "
+-%Infix "8th " "8. "
+-%Infix "9th " "9. "
+-%Infix "0th " "0. "
+-%Infix "11th " "11. "
+-%Infix "12th " "12. "
+-%Infix "13th " "13. "
++%Prefix "II "   "2nd "
++%Prefix "III "  "3rd "
++%Prefix "IV "   "4th "
++%Prefix "V "    "5th "
++%Prefix "VI "   "6th "
++%Prefix "VII "  "7th "
++%Prefix "VIII " "8th "
++%Prefix "IX "   "9th "
+ 
+ # Standardize playoff/women/team/etc suffixes:
+ 
+@@ -468381,6 +468398,9 @@
+ %Suffix " jr"   " junior"
+ %Suffix " Jr"   " junior"
+ 
++%Prefix " " ""
++%Suffix " " ""
++
+ Corr
+    = corr
+    = cr
+@@ -468583,6 +468603,10 @@
+ @ROUND ""
+ 
+ ### START OF ROUND SECTION
++
++%Prefix " " ""
++%Suffix " " ""
++
+ 1
+    = 01
+    = (01)

@@ -1,0 +1,498 @@
+#	Scid vs. PC Microsoft Visual C++ makefile for use with nmake.exe (Visual Studio)
+#	Copyright (C) 2000-2013 Shane Hudson, Gerd Lorscheid, Stevenaaus, Ted Wong
+#
+#	Quick start: Initialise build environment, and build all
+#
+#		"%ProgramFiles%\Microsoft Visual Studio 11.0\VC\vcvarsall.bat"
+#		nmake -f Makefile.vc
+
+#	Note, to clean binaries/gui use
+#		nmake -f Makefile.vc hose
+#
+#	Usage:
+#
+#	1) Targets are:
+#		release	-- Builds scid.exe and scid.gui (default).
+#		all	-- Builds everything.
+#		scid.gui-- Gui only
+#		clean	-- removes the contents of $(TMP_DIR).
+#		hose	-- removes the contents of $(TMP_DIR) and $(OUT_DIR).
+#		rebuild	-- first cleans then builds release.
+#
+#	2) Examples:
+#
+#	Basic syntax of calling nmake looks like this:
+#	nmake -f Makefile.vc [target|macrodef [target|macrodef] [...]]
+#
+#	Release
+#		c:\scid_src>nmake -f Makefile.vc release
+#
+#	Release with English and French only
+#		c:\scid_src>nmake -f Makefile.vc release LANG=francais
+#
+#	Release with Tcl in a non-default directory
+#		c:\scid_src>nmake -f Makefile.vc release TCL_DIR="C:\Temp\Tcl"
+#
+#	Everything with Tcl and Tk in a non-default directory
+#		c:\scid_src>nmake -f Makefile.vc all TCL_DIR=E:\MyTcl
+#
+#	3) Macros usable on the commandline:
+#
+#		TMP_DIR=<path>
+#		OUT_DIR=<path>
+#			-- Allows the intermediate and output directories to be
+#			   changed.
+#			   $(OUT_DIR) is assumed to be .\(Release|Debug) based
+#			   on if debug is requested or not.
+#			   $(TMP_DIR) will be $(OUT_DIR)\Temp by default.
+#
+#		TCL_DIR=<path>
+#			-- Allows the Tcl directory location to be changed. If
+#			   this is not set, the makefile will attempt to locate
+#			   Tcl in its default install directory.
+#			   "C:\Program Files\Tcl"
+#
+#		VS_DIR=<path>
+#			-- Base directory of visual studio. Should contain subdirectory $(VS_DIR)\VC\include
+#
+#		VS_SDK_DIR=<path>
+#			-- Base directory of visual studio SDK. Should contain subdirectory $(VS_DIR)\Windows\v5.0\Include
+#		LANG=<language>
+#			-- This allows you to build the GUI with only english
+#			   and one other language
+#			<language>
+#				portbr		-- Brazilian Portuguese
+#				port		-- Portuguese
+#				czech		-- Czech
+#				deutsch		-- German
+#				english		-- English only
+#				spanish		-- Spanish
+#				francais	-- French
+#				hungary		-- Hungarian
+#				italian		-- Italian
+#				nederlan	-- Dutch
+#				norsk		-- Norwegian
+#				polish		-- Polish
+#				serbian		-- Serbian
+#				swedish		-- Swedish
+
+#--------------------------------------------------------------------
+# Environment Setup
+#--------------------------------------------------------------------
+
+# Check env is inited ok
+
+!if !exist("$(VCINSTALLDIR)")
+!error "Visual Studio C directory VCINSTALLDIR seems incorrectly set to $(VCINSTALLDIR)"
+!endif
+
+##	Set compiler and linker
+
+CC		= @cl
+LD		= @link
+RC		= @rc
+
+
+##	Set Output and Intermediate directory
+
+OUT_DIR		= .\Release
+TMP_DIR		= $(OUT_DIR)\Temp
+
+##	TCL_VERSION: Tcl/Tk version
+#	This should be "84" for Tcl/Tk 8.4, etc.
+
+TCL_VERSION	= 85
+
+##	SCID_INCLUDES: included files from Tcl/Tk
+#	This will try to find your Tcl/Tk installation.
+
+!ifndef TCL_DIR
+!if exist("%ProgramFiles%\Tcl\include\tcl.h")
+TCL_DIR		= %ProgramFiles%\Tcl
+!elseif exist("C:\Tcl")
+TCL_DIR		= C:\Tcl
+!else
+MSG=^
+*** Don't know where Tcl is.  Set the TCL_DIR macro.
+!error $(MSG)
+!endif
+!else
+!if exist("$(TCL_DIR)\include\tcl.h")
+!elseif exist("$(TCL_DIR)\generic\tcl.h")
+MSG =^
+*** Tcl source found.  The TCL_DIR macro must point to the installed version.
+!error $(MSG)
+!else
+MSG =^
+*** Don't know where Tcl is.  The TCL_DIR macro doesn't appear correct.
+!error $(MSG)
+!endif
+!endif
+
+TCL_INCLUDES	= -I"$(TCL_DIR)\include"
+TCL_LIB		= "$(TCL_DIR)\lib\tcl$(TCL_VERSION).lib"
+TK_INCLUDES	= -I"$(TCL_DIR)\include"
+SCID_INCLUDES	= $(TCL_INCLUDES) $(TK_INCLUDES)
+TK_LIB		= "$(TCL_DIR)\lib\tk$(TCL_VERSION).lib" $(TCL_LIB)
+
+##	Needed to link clipboard, drag and drop deps (others?)
+
+DND_LIBS_DIR	= "%WindowsSdkDir%\Lib\win8\um\%PROCESSOR_ARCHITECTURE%"
+DND_LIBS	= $(DND_LIBS_DIR)\user32.lib $(DND_LIBS_DIR)\shell32.lib $(DND_LIBS_DIR)\ole32.lib 
+
+##	SCID_FLAGS: Scid customization flags.
+#	Use -DZLIB if your system does not have zlib and you need
+#	to include the code in the src/zlib directory.
+#	The default is to use the system zlib library.
+
+SCID_FLAGS	= -DZLIB
+
+##	SCID_TB: Tablebase support.
+#	for no tablebase reading capability.
+#		Use:	SCID_TB =
+#	for tablebase capability.
+#		Use:	SCID_TB = -DSCID_USE_TB
+#	for tablebase capability including 4-1
+#	(King + 3 pieces vs lone king) tablebases.
+#		Use:	SCID_TB = -DSCID_USE_TB -DT41_INCLUDE
+#
+#	Note: With 4-1 (King + 3 pieces vs lone King) tablebases,
+#	older MS compilers need a "/Zm" option to tell them to use
+#	more memory when compiling.
+
+SCID_TB		= -DSCID_USE_TB -DT41_INCLUDE -Zm101
+
+##	SCID_EXECS: all the executable programs compiled from C++ files.
+#	Note: only "scid.exe" is compiled by default.
+
+SCID_EXECS = \
+	pgnscid.exe \
+	scid.exe \
+	scidlet.exe \
+	scidt.exe \
+	scmerge.exe \
+	tcscid.exe
+#	tkscid.exe (unused)
+
+##	ZLIB_OBJS: obj. files in the zlib compression library.
+
+ZLIB_OBJS = \
+	$(TMP_DIR)\adler32.obj \
+	$(TMP_DIR)\compress.obj \
+	$(TMP_DIR)\crc32.obj \
+	$(TMP_DIR)\gzio.obj \
+	$(TMP_DIR)\uncompr.obj \
+	$(TMP_DIR)\deflate.obj \
+	$(TMP_DIR)\trees.obj \
+	$(TMP_DIR)\zutil.obj \
+	$(TMP_DIR)\inflate.obj \
+	$(TMP_DIR)\infblock.obj \
+	$(TMP_DIR)\inftrees.obj \
+	$(TMP_DIR)\infcodes.obj \
+	$(TMP_DIR)\infutil.obj \
+	$(TMP_DIR)\inffast.obj
+
+POL_OBJS = \
+      $(TMP_DIR)\pol\attack.obj \
+      $(TMP_DIR)\pol\board.obj \
+      $(TMP_DIR)\pol\book.obj \
+      $(TMP_DIR)\pol\book_make.obj \
+      $(TMP_DIR)\pol\book_merge.obj \
+      $(TMP_DIR)\pol\colour.obj \
+      $(TMP_DIR)\pol\fen.obj \
+      $(TMP_DIR)\pol\game.obj \
+      $(TMP_DIR)\pol\hash.obj \
+      $(TMP_DIR)\pol\io.obj \
+      $(TMP_DIR)\pol\line.obj \
+      $(TMP_DIR)\pol\list.obj \
+      $(TMP_DIR)\pol\main.obj \
+      $(TMP_DIR)\pol\move.obj \
+      $(TMP_DIR)\pol\move_do.obj \
+      $(TMP_DIR)\pol\move_gen.obj \
+      $(TMP_DIR)\pol\move_legal.obj \
+      $(TMP_DIR)\pol\option.obj \
+      $(TMP_DIR)\pol\parse.obj \
+      $(TMP_DIR)\pol\pgn.obj \
+      $(TMP_DIR)\pol\piece.obj \
+      $(TMP_DIR)\pol\random.obj \
+      $(TMP_DIR)\pol\san.obj \
+      $(TMP_DIR)\pol\search.obj \
+      $(TMP_DIR)\pol\square.obj \
+      $(TMP_DIR)\pol\util.obj
+
+##	SCID_OBJS: not all the .obj files that make up Scid, just the standard
+#	files that most of the Scid programs use.
+
+SCID_OBJS= \
+      $(ZLIB_OBJS) \
+      $(POL_OBJS) \
+      $(TMP_DIR)\misc.obj \
+      $(TMP_DIR)\index.obj \
+      $(TMP_DIR)\date.obj \
+      $(TMP_DIR)\namebase.obj \
+      $(TMP_DIR)\position.obj \
+      $(TMP_DIR)\game.obj \
+      $(TMP_DIR)\gfile.obj \
+      $(TMP_DIR)\matsig.obj \
+      $(TMP_DIR)\bytebuf.obj \
+      $(TMP_DIR)\textbuf.obj \
+      $(TMP_DIR)\myassert.obj \
+      $(TMP_DIR)\stralloc.obj \
+      $(TMP_DIR)\mfile.obj \
+      $(TMP_DIR)\dstring.obj \
+      $(TMP_DIR)\pgnparse.obj \
+      $(TMP_DIR)\stored.obj \
+      $(TMP_DIR)\movelist.obj 
+
+##	SCID_XOBJS: all the extra .obj files that make up Scid.
+
+SCID_XOBJS = \
+	$(SCID_OBJS) \
+	$(TMP_DIR)\crosstab.obj \
+	$(TMP_DIR)\engine.obj \
+	$(TMP_DIR)\filter.obj \
+	$(TMP_DIR)\optable.obj \
+	$(TMP_DIR)\pbook.obj \
+	$(TMP_DIR)\probe.obj \
+	$(TMP_DIR)\recog.obj \
+	$(TMP_DIR)\spellchk.obj \
+	$(TMP_DIR)\tree.obj
+
+## And the TK GUI elements
+
+SCID_TK_OBJS = \
+	$(TMP_DIR)\tk_selection.obj \
+	$(TMP_DIR)\tkdnd\TkDND_OleDND.obj
+
+
+### LANGUAGES: List of additional Tcl files to include in Scid for
+#       multi-language menu support.
+#       By default, it is all the contributed languages, but you
+#       can reduce the size of the Scid program by only specifying
+#       the languages you want supported.
+
+LANGUAGES = tcl\lang\deutsch.tcl tcl\lang\francais.tcl tcl\lang\italian.tcl tcl\lang\nederlan.tcl tcl\lang\spanish.tcl tcl\lang\portbr.tcl tcl\lang\port.tcl tcl\lang\swedish.tcl tcl\lang\norsk.tcl tcl\lang\polish.tcl tcl\lang\czech.tcl tcl\lang\hungary.tcl tcl\lang\serbian.tcl
+	
+##	SCID_TCLS: Setup the .tcl files for scid
+
+SCID_TCLS= \
+ tcl\start.tcl \
+  tcl\config.tcl \
+  tcl\bitmaps.tcl \
+  tcl\language.tcl \
+  tcl\utils.tcl \
+    tcl\utils\date.tcl tcl\utils\font.tcl tcl\utils\graph.tcl tcl\utils\history.tcl \
+    tcl\utils\pane.tcl tcl\utils\sound.tcl tcl\utils\string.tcl tcl\utils\tooltip.tcl \
+    tcl\utils\validate.tcl tcl\utils\win.tcl \
+  tcl\misc\misc.tcl tcl\htext.tcl \
+  tcl\file.tcl \
+    tcl\file\finder.tcl tcl\file\bookmark.tcl tcl\file\recent.tcl tcl\file\epd.tcl \
+    tcl\file\spellchk.tcl tcl\file\maint.tcl \
+  tcl\edit.tcl \
+  tcl\game.tcl \
+    tcl\game\browser.tcl \
+  tcl\windows.tcl \
+    tcl\windows\gamelist.tcl tcl\windows\pgn.tcl tcl\windows\book.tcl \
+    tcl\windows\comment.tcl tcl\windows\eco.tcl \
+    tcl\windows\stats.tcl tcl\windows\tree.tcl tcl\windows\crosstab.tcl \
+    tcl\windows\pfinder.tcl tcl\windows\tourney.tcl tcl\windows\switcher.tcl \
+  tcl\search\search.tcl \
+    tcl\search\board.tcl tcl\search\header.tcl tcl\search\material.tcl \
+  tcl\contrib\ezsmtp\ezsmtp.tcl \
+    tcl\tools\email.tcl \
+    tcl\tools\import.tcl \
+    tcl\tools\optable.tcl tcl\tools\preport.tcl tcl\tools\pinfo.tcl \
+    tcl\tools\analysis.tcl tcl\tools\comp.tcl tcl\tools\wbdetect.tcl \
+    tcl\tools\reper.tcl tcl\tools\graphs.tcl tcl\tools\tablebase.tcl tcl\tools\ptracker.tcl \
+  tcl\help\help.tcl tcl\help\tips.tcl \
+  tcl\menus.tcl tcl\board.tcl tcl\move.tcl tcl\main.tcl tcl\tools\correspondence.tcl \
+    tcl\lang\english.tcl $(LANGUAGES) tcl\dnd\tkdnd.tcl tcl\dnd\tkdnd_windows.tcl \
+  tcl\tools\fics.tcl tcl\tools\uci.tcl tcl\end.tcl tcl\tools\tacgame.tcl tcl\tools\sergame.tcl tcl\tools\calvar.tcl tcl\tools\tactics.tcl tcl\tools\novag.tcl tcl\misc\flags.tcl tcl\tools\inputengine.tcl
+
+
+#--------------------------------------------------------------------
+# Compile flags
+#--------------------------------------------------------------------
+
+##	OPTIMIZE: Optimization
+#	-O2	:Maximize Speed
+#	-Op	:Improve Float Consistency
+#	-GL	:Whole Program Optimization
+#	-QI0f	:Enable Pentium 0x0f Fix
+
+OPTIMIZE	= /O2
+
+##	WARNINGS: I always compile with all warnings on (-Wall)
+#	Note: (-W2) is the default for MS compiler.
+
+WARNINGS	= -W2
+
+##	PROFILE: Set profile for compiling
+#	-DNDEBUG		:Turn off debug code
+#	-DWIN32			:Target Windows 32bit
+#	-DWIN32_LEAN_AND_MEAN	:Speeds building times by excluding some less
+#				 common APIs, and SEEMS NECESSARY at some stage
+
+# PROFILE		= $(PROFILE) -DWIN32  -D_X86_
+PROFILE		= $(PROFILE) -DWIN32 -DWIN32_LEAN_AND_MEAN
+
+##	CFLAGS: C++ compiler flags
+#	-c	:Compile Without linking
+
+CFLAGS		= $(PROFILE) $(OPTIMIZE) $(WARNINGS) $(SCID_FLAGS) \
+			$(SCID_INCLUDES) -c -nologo \
+			-I"$(VS_DIR)\VC\include" \
+			-I"$(VS_SDK_DIR)\include"
+
+##	LDFLAGS: C++ linker flags
+#	-LTCG	:Link-time Code Generation
+
+LDFLAGS		= -opt:icf,3
+LDFLAGS		= $(LDFLAGS) -nologo -libpath:"$(VS_DIR)\VC\lib" -libpath:"$(VS_SDK_DIR)\Lib" 
+
+
+#--------------------------------------------------------------------
+# Project specific targets
+#--------------------------------------------------------------------
+
+release:	scid.exe scid.gui
+all:		scid.gui $(SCID_EXECS)
+
+setup:
+	@if not exist $(OUT_DIR)\nul @echo Makefile.vc: Creating directory '$(OUT_DIR)'...
+	@if not exist $(OUT_DIR)\nul mkdir $(OUT_DIR)
+	@if not exist $(TMP_DIR)\nul @echo Makefile.vc: Creating directory '$(TMP_DIR)'...
+	@if not exist $(TMP_DIR)\nul mkdir $(TMP_DIR)
+	@if not exist $(TMP_DIR)\pol\nul @echo Makefile.vc: Creating directory '$(TMP_DIR)\pol'...
+	@if not exist $(TMP_DIR)\pol\nul mkdir $(TMP_DIR)\pol
+	@if not exist $(TMP_DIR)\tkdnd mkdir $(TMP_DIR)\tkdnd
+
+scid.gui: setup $(SCID_TCLS)
+	@type $(SCID_TCLS) > $(OUT_DIR)\scid.gui
+
+scmerge.exe: $(TMP_DIR)\scmerge.obj $(SCID_OBJS)
+	@echo *** scmerge.exe
+	$(LD) $(LDFLAGS) $(TMP_DIR)\scmerge.obj $(SCID_OBJS) $(TCL_LIB) \
+		/out:$(OUT_DIR)\scmerge.exe
+
+pgnscid.exe: $(TMP_DIR)\pgnscid.obj $(SCID_OBJS)
+	@echo *** pgnscid.exe
+	$(LD) $(LDFLAGS) $(TMP_DIR)\pgnscid.obj $(SCID_OBJS) $(TCL_LIB) \
+		/out:$(OUT_DIR)\pgnscid.exe
+
+scidt.exe: $(TMP_DIR)\scidt.obj $(SCID_OBJS)
+	@echo *** scidt.exe
+	$(LD) $(LDFLAGS) $(TMP_DIR)\scidt.obj $(SCID_OBJS) $(TCL_LIB) \
+		/out:$(OUT_DIR)\scidt.exe
+
+scidlet.exe: $(TMP_DIR)\scidlet.obj $(SCID_XOBJS)
+	@echo *** scidlet.exe
+	$(LD) $(LDFLAGS) $(TMP_DIR)\scidlet.obj $(SCID_XOBJS) $(TCL_LIB) \
+		/out:$(OUT_DIR)\scidlet.exe
+
+scid.exe: setup $(TMP_DIR)\scid.obj $(SCID_XOBJS) $(SCID_TK_OBJS)
+	@echo *** scid.exe
+	$(LD) $(LDFLAGS) $(TMP_DIR)\scid.obj $(SCID_XOBJS) $(SCID_TK_OBJS) $(TK_LIB) $(DND_LIBS) \
+		/out:$(OUT_DIR)\scid.exe \
+		/subsystem:windows /entry:mainCRTStartup
+
+tcscid.exe: $(TMP_DIR)\tcscid.obj $(SCID_XOBJS)
+	@echo *** tcscid.exe
+	$(LD) $(LDFLAGS) $(TMP_DIR)\tcscid.obj $(SCID_XOBJS) $(TCL_LIB) \
+		/out:$(OUT_DIR)\tcscid.exe
+
+## Currently unused ?
+
+tkscid.exe: $(TMP_DIR)\tkscid.obj $(SCID_XOBJS) $(SCID_TK_OBJS) 
+	@echo *** tkscid.exe
+	$(LD) $(LDFLAGS) $(TMP_DIR)\tkscid.obj $(SCID_XOBJS) $(SCID_TK_OBJS) $(TK_LIB) $(DND_LIBS) \
+		/out:$(OUT_DIR)\tkscid.exe
+
+eco2epd.exe: $(TMP_DIR)\eco2epd.obj $(TMP_DIR)\pbook.obj $(SCID_OBJS)
+	@echo *** eco2epd.exe
+	$(LD) $(LDFLAGS) $(TMP_DIR)\eco2epd.obj $(TMP_DIR)\pbook.obj \
+		$(SCID_OBJS) /out:$(OUT_DIR)\eco2epd.exe
+
+#--------------------------------------------------------------------
+# Special case object file targets
+#--------------------------------------------------------------------
+
+$(TMP_DIR)\tcscid.obj: src\tkscid.cpp
+	$(CC) $(CFLAGS) -DTCL_ONLY /Fo$@ $?
+
+$(TMP_DIR)\tkscid.obj: src\tkscid.cpp
+	$(CC) $(CFLAGS) /Fo$@ $?
+
+$(TMP_DIR)\scid.obj: src\tkscid.cpp
+	$(CC) $(CFLAGS) -DSOURCE_TCL_FILE=\"scid.gui\" /Fo$@ $?
+
+$(TMP_DIR)\probe.obj: src\probe.cpp src\egtb\tbindex.cpp src\egtb\tbdecode.c
+	$(CC) $(CFLAGS) $(SCID_TB) src\probe.cpp /Fo$@
+
+
+#--------------------------------------------------------------------
+# Implicit rules
+#--------------------------------------------------------------------
+
+{src}.cpp{$(TMP_DIR)}.obj:
+	$(CC) $(CFLAGS) -Fo$(TMP_DIR)\ $<
+
+{src\tkdnd\win}.cpp{$(TMP_DIR)\tkdnd}.obj:
+	$(CC) $(CFLAGS) -Fo$(TMP_DIR)\tkdnd\ $<
+
+{src\polyglot}.cpp{$(TMP_DIR)\pol}.obj:
+	$(CC) $(CFLAGS) -Fo$(TMP_DIR)\pol\ $<
+
+{src\egtb}.cpp{$(TMP_DIR)}.obj:
+	$(CC) $(CFLAGS) -Fo$(TMP_DIR)\ $<
+
+{src\egtb}.c{$(TMP_DIR)}.obj:
+	$(CC) $(CFLAGS) -Fo$(TMP_DIR)\ $<
+
+{src\zlib}.c{$(TMP_DIR)}.obj:
+	$(CC) $(CFLAGS) -Fo$(TMP_DIR)\ $<
+	
+.rc{$(TMP_DIR)}.res:
+	$(RC) -r -Fo$(TMP_DIR)\$(@B).res $<
+
+
+#--------------------------------------------------------------------
+# Clean up
+#--------------------------------------------------------------------
+
+RMDIR		= rmdir /S /Q
+
+##	clean:
+#	This will remove .obj files.
+
+clean:
+	@echo Cleaning...
+	@echo.
+	@if exist $(TMP_DIR)\nul @echo *** Removing directory '$(TMP_DIR)'...
+	@if exist $(TMP_DIR)\nul $(RMDIR) $(TMP_DIR)
+	@echo.
+	@echo Finished
+
+##	hose:
+#	This will remove .exe and .obj files.
+
+hose:
+	@echo Hosing...
+	@echo.
+	@if exist $(OUT_DIR)\nul @echo *** Removing directory '$(OUT_DIR)'...
+	@if exist $(OUT_DIR)\nul $(RMDIR) $(OUT_DIR)
+	@echo.
+	@echo Finished
+
+##	rebuild:
+#	This will clean and then rebuild .obj and .exe files.
+
+rebuild:
+	@echo Cleaning...
+	@echo.
+	@$(MAKE) -fMakefile.vc -$(MAKEFLAGS) clean -nologo > nul
+	@echo Building...
+	@echo.
+	@$(MAKE) -fMakefile.vc -$(MAKEFLAGS) -nologo
+	@echo.
+	@echo Finished

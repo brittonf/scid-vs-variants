@@ -1,0 +1,1066 @@
+Maybe gzip compression (zlib) doesn't belong inside scid.
+To remove, apply this patch, and delete the src/zlib directory
+
+Index: configure
+===================================================================
+--- configure	(revision 1867)
++++ configure	(working copy)
+@@ -302,79 +302,9 @@
+     return $success
+ }
+ 
+-
+-# testzlib_sh:
+-#    Script used to test if the system has zlib installed.
+-#
+-set testzlib {#!/bin/sh
+-CC=gcc
+-cat <<EOF > testzlib.c
+-#include <zlib.h>
+-int main()
+-{
+-    z_streamp z;
+-    deflateInit(z, 0);
+-    return 0;
+-}
+-EOF
+-
+-$CC -o testzlib testzlib.c -lz
+-if [ -f testzlib ]; then
+-    exit 0
+-else
+-    exit 1
+-fi
+-}
+-
+-# systemHasZlib:
+-#    Determines if the system has zlib installed. If not, the Zlib
+-#    version that comes with Scid will be used.
+-#
+-proc systemHasZlib {} {
+-    set systemHasZlib 0
+-    flush stdout
+-    if {[catch {open testzlib.sh w} f]} { return 0 }
+-    puts $f $::testzlib
+-    close $f
+-    set result 0
+-    if {! [catch {exec sh testzlib.sh} err]} { set result 1 }
+-    catch {file delete -force testzlib.sh}
+-    catch {file delete -force testzlib.c}
+-    catch {file delete -force testzlib}
+-    return $result
+-}
+-
+-
+-# checkZlib:
+-#    Checks whether the system has the zlib compression library installed,
+-#    if necessary. 
+-#
+-proc checkZlib {} {
+-    global var
+-    if {[string first "DZLIB" $var(SCIDFLAGS)] >= 0} {
+-        set var(ZLIB) {}
+-        set var(OBJS) {$(SCIDOBJS) $(ZLIBOBJS)}
+-        return
+-    }
+-    puts -nonewline "    Checking if your system already has zlib installed: "
+-    flush stdout
+-    if {[systemHasZlib]} {
+-        puts "yes."
+-        set var(ZLIB) {-lz}
+-        set var(OBJS) {$(SCIDOBJS)}
+-    } else {
+-        puts "no."
+-        append var(SCIDFLAGS) " -DZLIB"
+-        set var(ZLIB) {}
+-        set var(OBJS) {$(SCIDOBJS) $(ZLIBOBJS)}
+-    }
+-}
+-
+-# writeMakefile:
+-#    Creates the Makefile using Makefile.conf and the configured
+-#    settings.
++#    Creates the Makefile using Makefile.conf and the configured settings.
+ #    Also creates tcl/config.tcl
+-#
++
+ proc writeMakefile {{type ""}} {
+     global var defaultVar
+   
+@@ -404,8 +334,6 @@
+         }
+     }
+ 
+-    checkZlib
+-
+     if {[catch {set from [open "$Makefile_conf" r]}]} {
+        puts "Error opening file for reading: $Makefile_conf"
+        exit 1
+Index: src/mfile.h
+===================================================================
+--- src/mfile.h	(revision 1867)
++++ src/mfile.h	(working copy)
+@@ -15,9 +15,6 @@
+ 
+ // An MFile is a file that can be a regular file, or memory-only with
+ // no actual file on any device.
+-// In addition, an MFile can decode its contents from a GZip (.gz) file
+-// and will hopefully in future also be able to extract the contents of
+-// all files in a Zip file, as if they were in one large plain file.
+ 
+ 
+ #ifndef SCID_MFILE_H
+@@ -28,25 +25,17 @@
+ #include "error.h"
+ 
+ enum mfileT {
+-    MFILE_REGULAR = 0, MFILE_MEMORY, MFILE_GZIP, MFILE_ZIP
++    MFILE_REGULAR = 0, MFILE_MEMORY, MFILE_ZIP
+ };
+ 
+ class MFile
+ {
+   private:
+     FILE *      Handle;         // For regular files.
+-    gzFile      GzHandle;       // For Gzip files.
+     fileModeT   FileMode;
+     mfileT      Type;
+     char *      FileName;
+ 
+-    // The next few fields are used to improve I/O speed on Gzip files, by
+-    // avoiding doing a gzgetc() every character, since the zlib file gzio.c
+-    // simply does a (relatively slow) gzread() for each gzgetc().
+-    byte *      GzBuffer;
+-    int         GzBuffer_Avail;
+-    byte *      GzBuffer_Current;
+-
+     // The next few fields are used for in-memory files.
+     uint        Capacity;
+     uint        Location;
+@@ -56,7 +45,6 @@
+     char *      FileBuffer;  // Only for files with unusual buffer size.
+ 
+     void  Extend();
+-    int   FillGzBuffer();
+ 
+   public:
+     MFile() { Init(); }
+@@ -119,9 +107,6 @@
+         return (Location >= Capacity);
+     case MFILE_REGULAR:
+         return feof(Handle);
+-    case MFILE_GZIP:
+-        if (GzBuffer_Avail > 0) { return 0; }
+-        return gzeof(GzHandle);
+     default:
+         return false;
+     }
+@@ -138,9 +123,6 @@
+         return OK;
+     }
+     Location++;
+-    if (Type == MFILE_GZIP) {
+-        return (gzputc(GzHandle, value) == EOF) ? ERROR_FileWrite : OK;
+-    }
+     return (putc(value, Handle) == EOF) ? ERROR_FileWrite : OK;
+ }
+ 
+@@ -156,15 +138,6 @@
+         return (int) value;
+     }
+     Location++;
+-    if (Type == MFILE_GZIP) {
+-        if (GzBuffer_Avail <= 0) {
+-            return FillGzBuffer();
+-        }
+-        GzBuffer_Avail--;
+-        int retval = *GzBuffer_Current;
+-        GzBuffer_Current++;
+-        return retval;
+-    }
+     #ifdef __GNUC__
+     return getc_unlocked(Handle);
+     #else
+Index: src/pgnscid.cpp
+===================================================================
+--- src/pgnscid.cpp	(revision 1867)
++++ src/pgnscid.cpp	(working copy)
+@@ -54,9 +54,6 @@
+     fprintf (stderr, "      -x: Ignore comments before games.\n");
+     fprintf (stderr, "      Database name defaults to the PGN filename ");
+     fprintf (stderr, "without the \".pgn\" suffix.\n");
+-#ifndef NO_ZLIB
+-    fprintf (stderr, "  Note: A Gzip compressed file (e.g. filename.pgn.gz) can be used.\n");
+-#endif
+     exit(1);
+ }
+ 
+@@ -103,11 +100,6 @@
+     // Make baseName from pgnName if baseName is not provided:
+     if (argsleft == 1) {
+         strCopy (baseName, pgnName);
+-        // If a gzip file, remove two suffixes, the first being ".gz":
+-        const char * lastSuffix = strFileSuffix (baseName);
+-        if (lastSuffix != NULL  &&  strEqual (lastSuffix, GZIP_SUFFIX)) {
+-            strTrimFileSuffix (baseName);
+-        }
+         // Trim the ".pgn" suffix:
+         strTrimFileSuffix (baseName);
+     } else {
+Index: src/tkscid.cpp
+===================================================================
+--- src/tkscid.cpp	(revision 1867)
++++ src/tkscid.cpp	(working copy)
+@@ -1140,7 +1140,6 @@
+ 
+     if (suffix == NULL  ||
+         (!strEqual (suffix, INDEX_SUFFIX)
+-         &&  !strEqual (suffix, GZIP_SUFFIX)
+          &&  !strEqual (suffix, PGN_SUFFIX))) {
+         // Need to add Index file suffix:
+         strAppend (fname, INDEX_SUFFIX);
+@@ -1328,7 +1327,7 @@
+ 
+     if (db->idx->VerifyFile (db->nb) != OK) {
+         db->idx->CloseIndexFile();
+-        return errorResult (ti, "Error: name corruption in index file.\nRun \"scidt -N\" on this database to fix it.");
++        return errorResult (ti, "Error: name corruption in index file.\nTry repairing base with Tools->Maintenance->Repair Base.");
+     }
+ 
+     db->numGames = db->idx->GetNumGames();
+@@ -9894,12 +9893,12 @@
+ sc_info (ClientData cd, Tcl_Interp * ti, int argc, const char ** argv)
+ {
+     static const char * options [] = {
+-        "asserts", "clipbase", "decimal", "fsize", "gzip",
++        "asserts", "clipbase", "decimal", "fsize",
+         "html", "limit", "preMoveCmd", "priority", "ratings",
+         "suffix", "tb", "validDate", "version", "pocket", "pocket_priority", "logmem", "language", NULL
+     };
+     enum {
+-        INFO_ASSERTS, INFO_CLIPBASE, INFO_DECIMAL, INFO_FSIZE, INFO_GZIP,
++        INFO_ASSERTS, INFO_CLIPBASE, INFO_DECIMAL, INFO_FSIZE,
+         INFO_HTML, INFO_LIMIT, INFO_PREMOVECMD, INFO_PRIORITY, INFO_RATINGS,
+         INFO_SUFFIX, INFO_TB, INFO_VALIDDATE, INFO_VERSION, INFO_POCKET,
+         INFO_POCKET_PRIORITY, INFO_LOGMEM, INFO_LANGUAGE
+@@ -9926,15 +9925,6 @@
+     case INFO_FSIZE:
+         return sc_info_fsize (cd, ti, argc, argv);
+ 
+-    case INFO_GZIP:
+-        // Return true if gzip files can be decoded by Scid.
+-#ifdef NO_ZLIB
+-        return setBoolResult (ti, false);
+-#else
+-        return setBoolResult (ti, true);
+-#endif
+-        break;
+-
+     case INFO_HTML:
+         if (argc >= 3) {
+             htmlDiagStyle = strGetUnsigned (argv[2]);
+@@ -10041,7 +10031,7 @@
+ 
+ //~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ // sc_info_fsize:
+-//    Given the name of a .si3, .si, .pgn or .pgn.gz file, this command
++//    Given the name of a .si3, .si, .pgn file, this command
+ //    returns the number of games in that file. For large PGN files,
+ //    the value returned is only an estimate.
+ //    To distinguish estimates from correct sizes, an estimate is
+@@ -10055,15 +10045,11 @@
+     const char * fname = argv[2];
+     const char * lastSuffix = strFileSuffix (fname);
+     uint fsize = 0;
+-    bool isGzipFile = false;
+     bool isEpdFile = false;
+     bool isRepFile = false;
+ 
+     if (strAlphaContains (fname, ".epd")) { isEpdFile =  true; }
+     if (strAlphaContains (fname, ".sor")) { isRepFile =  true; }
+-    if (lastSuffix != NULL  &&  strEqual (lastSuffix, GZIP_SUFFIX)) {
+-        isGzipFile = true;
+-    }
+ 
+     if (lastSuffix != NULL  &&  strEqual (lastSuffix, OLD_INDEX_SUFFIX)) {
+         fsize = rawFileSize (fname);
+@@ -10081,11 +10067,7 @@
+     // Estimate size for PGN files, by reading the first 64 kb
+     // of the file and counting the number of games seen:
+ 
+-    if (isGzipFile) {
+-        fsize = gzipFileSize (fname);
+-    } else {
+-        fsize = rawFileSize (fname);
+-    }
++    fsize = rawFileSize (fname);
+ 
+     MFile pgnFile;
+     if (pgnFile.Open (fname, FMODE_ReadOnly) != OK) {
+Index: src/mfile.cpp
+===================================================================
+--- src/mfile.cpp	(revision 1867)
++++ src/mfile.cpp	(working copy)
+@@ -16,15 +16,10 @@
+ #include "mfile.h"
+ #include "misc.h"
+ 
+-// GZ_BUFFER_SIZE: number of bytes read from a Gzip file at a time.
+-const uint GZ_BUFFER_SIZE = 1024;
+-
+ void
+ MFile::Init ()
+ {
+     Handle = NULL;
+-    GzHandle = NULL;
+-    GzBuffer = NULL;
+     FileMode = FMODE_Both;
+     Type = MFILE_MEMORY;
+     Capacity = 0;
+@@ -81,12 +76,7 @@
+     if (FileMode != FMODE_Both  &&  Location == position) { return OK; }
+ 
+     int result;
+-    if (Type == MFILE_GZIP) {
+-        result = gzseek (GzHandle, position, 0);
+-        GzBuffer_Avail = 0;
+-    } else {
+-        result = fseek (Handle, position, 0);
+-    }
++    result = fseek (Handle, position, 0);
+     if (result != 0) { return ERROR_FileSeek; }
+     Location = position;
+     return OK;
+@@ -102,7 +92,7 @@
+ errorT
+ MFile::Open (const char * name, fileModeT fmode)
+ {
+-    ASSERT (Handle == NULL  &&  GzHandle == NULL);
++    ASSERT (Handle == NULL);
+     const char * modeStr = NULL;
+     switch (fmode) {
+         case FMODE_ReadOnly:   modeStr = "rb";  break;
+@@ -112,25 +102,10 @@
+     }
+ 
+     const char * suffix = strFileSuffix (name);
+-    if (suffix != NULL  &&  strEqual (suffix, GZIP_SUFFIX)) {
+-        // We can only open GZip files read-only for now:
+-        if (fmode != FMODE_ReadOnly) {
+-            return ERROR_FileOpen;
+-        }
+-        GzHandle = gzopen (name, "rb");
++    Handle = fopen (name, modeStr);
++    if (Handle == NULL) { return ERROR_FileOpen; }
++    Type = MFILE_REGULAR;
+ 
+-        if (GzHandle == NULL) { return ERROR_FileOpen; }
+-        Type = MFILE_GZIP;
+-        GzBuffer = new byte [GZ_BUFFER_SIZE];
+-
+-        GzBuffer_Current = GzBuffer;
+-        GzBuffer_Avail = 0;
+-    } else {
+-        Handle = fopen (name, modeStr);
+-        if (Handle == NULL) { return ERROR_FileOpen; }
+-        Type = MFILE_REGULAR;
+-    }
+-
+     FileMode = fmode;
+     FileName = strDuplicate (name);
+     Location = 0;
+@@ -140,7 +115,7 @@
+ errorT
+ MFile::Create (const char * name, fileModeT fmode)
+ {
+-    ASSERT (Handle == NULL  &&  GzHandle == NULL);
++    ASSERT (Handle == NULL);
+     const char * modeStr = NULL;
+     switch (fmode) {
+         case FMODE_WriteOnly: modeStr = "wb";  break;
+@@ -165,16 +140,7 @@
+         return OK;
+     }
+     int result;
+-    if (Type == MFILE_GZIP) {
+-        if (GzBuffer != NULL) {
+-        delete[] GzBuffer;
+-            GzBuffer = GzBuffer_Current = NULL;
+-            GzBuffer_Avail = 0;
+-        }
+-        result = gzclose (GzHandle);
+-    } else {
+-        result = fclose (Handle);
+-    }
++    result = fclose (Handle);
+ 
+     if (FileBuffer != NULL) {
+         delete[] FileBuffer;
+@@ -212,15 +178,6 @@
+     }
+ 
+     Location += length;
+-    
+-    if (Type == MFILE_GZIP) {
+-      err = OK;
+-      while (length-- > 0 && err == OK) {
+-        err = (gzputc(GzHandle, *str) == EOF) ? ERROR_FileWrite : OK;
+-        str++;
+-      }
+-      return err;
+-    }
+ 
+     return (fwrite( str, length, 1, Handle) != 1) ? ERROR_FileWrite : OK;
+ }
+@@ -352,17 +309,6 @@
+     return result;
+ }
+ 
+-int
+-MFile::FillGzBuffer ()
+-{
+-    ASSERT (Type == MFILE_GZIP  &&  GzBuffer != NULL  &&  GzBuffer_Avail <= 0);
+-    int bytesread = gzread (GzHandle, GzBuffer, GZ_BUFFER_SIZE);
+-    if (bytesread <= 0) { return EOF; }
+-    GzBuffer_Avail = bytesread - 1;
+-    GzBuffer_Current = &(GzBuffer[1]);
+-    return GzBuffer[0];
+-    
+-}
+ 
+ //////////////////////////////////////////////////////////////////////
+ //  End of file: mfile.cpp
+Index: src/common.h
+===================================================================
+--- src/common.h	(revision 1867)
++++ src/common.h	(working copy)
+@@ -34,18 +34,6 @@
+ #define snprintf _snprintf
+ #endif
+ 
+-#ifndef POCKETENGINE
+-// Include the zlib header file if it is being compiled with Scid:
+-#ifndef NO_ZLIB
+-#  ifdef ZLIB
+-#    include "zlib/zlib.h"
+-#   else
+-#    include <zlib.h>
+-#  endif
+-#endif
+-#else
+-#define ASSERT(f)
+-#endif
+ //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ // CONSTANTS:
+ 
+@@ -76,22 +64,6 @@
+ const char PGN_SUFFIX[] = ".pgn";
+ 
+ 
+-// If the zlib compression library is NOT used, create dummy inline
+-// functions to replace those used in zlib, which saves wrapping every
+-// zlib function call with #ifndef conditions.
+-
+-#ifdef NO_ZLIB
+-typedef void * gzFile;
+-inline gzFile gzopen (const char * name, const char * mode) { return NULL; }
+-inline int gzputc (gzFile fp, int c) { return c; }
+-inline int gzgetc (gzFile fp) { return -1; }
+-inline int gzread (gzFile fp, char * buffer, int length) { return 0; }
+-inline int gzeof (gzFile fp) { return 1; }
+-inline int gzseek (gzFile fp, int offset, int where) { return 0; }
+-inline int gzclose (gzFile fp) { return 0; }
+-#endif
+-
+-
+ // Bit Manipulations
+ 
+ #define BIT_7(x)            ((x) & 128)
+Index: Makefile.conf
+===================================================================
+--- Makefile.conf	(revision 1867)
++++ Makefile.conf	(working copy)
+@@ -1,4 +1,4 @@
+-! Makefile.conf
++!+ Makefile.conf
+ !    Makefile template for Scid for Unix operating systems.
+ !
+ ! This file is NOT an actual Makefile; it is a template file used by 
+@@ -49,9 +49,6 @@
+ TB = @TB@
+ 
+ ### SCIDFLAGS: Scid customization flags.
+-#      Use -DZLIB if your system does not have zlib and you need
+-#      to include the code in the src/zlib directory.
+-#      The default is to use the system zlib library.
+ 
+ SCIDFLAGS = @SCIDFLAGS@
+ 
+@@ -108,21 +105,8 @@
+       src/polyglot/parse.o src/polyglot/pgn.o src/polyglot/piece.o src/polyglot/random.o \
+       src/polyglot/san.o src/polyglot/search.o src/polyglot/square.o src/polyglot/util.o
+ 
+-### ZLIBOBJS: object files in the zlib compression library.
++### OBJS: Will be "$(SCIDOBJS)", "$(POLYGLOTOBJS)"
+ 
+-ZLIBOBJS= src/zlib/adler32.o src/zlib/compress.o src/zlib/crc32.o \
+-      src/zlib/gzio.o src/zlib/uncompr.o src/zlib/deflate.o src/zlib/trees.o \
+-      src/zlib/zutil.o src/zlib/inflate.o src/zlib/infblock.o \
+-      src/zlib/inftrees.o src/zlib/infcodes.o src/zlib/infutil.o \
+-      src/zlib/inffast.o
+-       
+-### ZLIB: Should be "-lz" if your system has zlib, "" otherwise.
+-
+-ZLIB = @ZLIB@
+-
+-### OBJS: Will be "$(SCIDOBJS)", "$(POLYGLOTOBJS)", and also "$(ZLIBOBJS)" if they are
+-#      needed on your system.
+-
+ OBJS= @OBJS@
+ 
+ ### TCLS: all the .tcl files that make up "scid".
+@@ -286,7 +270,7 @@
+ 	-rm -f $(SHAREDIR)/scid.eco
+ 
+ clean:
+-	rm -f game.* tkscid.so tkscid.dll position.* src/*.o src/zlib/*.o src/zlib/*.a src/polyglot/*.o $(EXECS) scid $(SCRIPTS)
++	rm -f game.* tkscid.so tkscid.dll position.* src/*.o src/polyglot/*.o $(EXECS) scid $(SCRIPTS)
+ 	cd engines/phalanx/ && make clean && cd ../../
+ 	cd engines/toga/src/ && make clean && cd ../../../
+ 	cd src/tkdnd/ && make clean && cd ../..
+@@ -370,34 +354,34 @@
+ scmerge: src/scmerge.o src/misc.o src/index.o src/date.o src/namebase.o \
+          src/gfile.o src/bytebuf.o src/textbuf.o src/myassert.o \
+          src/stralloc.o src/position.o
+-	$(LINK) $(LDFLAGS) -o scmerge src/scmerge.o $(OBJS) $(ZLIB)
++	$(LINK) $(LDFLAGS) -o scmerge src/scmerge.o $(OBJS)
+ 
+ pgnscid: src/pgnscid.o $(OBJS)
+-	$(LINK) $(LDFLAGS) -o pgnscid src/pgnscid.o $(OBJS) $(ZLIB)
++	$(LINK) $(LDFLAGS) -o pgnscid src/pgnscid.o $(OBJS)
+ 
+ scidlet: src/scidlet.o src/engine.o src/recog.o src/misc.o src/position.o \
+          src/dstring.o src/movelist.o src/myassert.o
+ 	$(LINK) $(LDFLAGS) -o scidlet src/scidlet.o src/engine.o src/recog.o src/misc.o src/position.o src/movelist.o src/dstring.o src/myassert.o
+ 
+ scidt: src/scidt.o $(OBJS)
+-	$(LINK) $(LDFLAGS) -o scidt src/scidt.o $(OBJS) $(ZLIB)
++	$(LINK) $(LDFLAGS) -o scidt src/scidt.o $(OBJS)
+ 
+ tkscid: src/tkscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o \
+         src/probe.o src/optable.o src/engine.o src/recog.o src/tkdnd/TkDND_XDND.o src/tk_selection.o
+ 	$(LINK) $(LDFLAGS) -o tkscid src/tkscid.o $(OBJS) src/tree.o \
+         src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o \
+-        src/engine.o src/recog.o src/tkdnd/TkDND_XDND.o src/tk_selection.o $(ZLIB) $(TK_LIBRARY)
++        src/engine.o src/recog.o src/tkdnd/TkDND_XDND.o src/tk_selection.o $(TK_LIBRARY)
+ 
+ tcscid: src/tcscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o \
+         src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o
+ 	$(LINK) $(LDFLAGS) -o tcscid src/tcscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o \
+-        src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(ZLIB) $(TCL_LIBRARY)
++        src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(TCL_LIBRARY)
+ 
+ # eco2epd is now optional extra program NOT compiled by default, since
+ # scid now reads the .eco file format directly.
+ 
+ eco2epd: src/eco2epd.o $(OBJS) src/pbook.o
+-	$(LINK) $(LDFLAGS) -o eco2epd src/eco2epd.o $(OBJS) src/pbook.o $(ZLIB)
++	$(LINK) $(LDFLAGS) -o eco2epd src/eco2epd.o $(OBJS) src/pbook.o
+ 
+ ### Rules to create .o files from .cpp files:
+ 
+@@ -417,11 +401,6 @@
+ %.o: %.cpp
+ 	$(CXX) $(CXXFLAGS) $(TCL_INCLUDE) -o $@ -c $<
+ 
+-### Rule for compiling zlib source files:
+-
+-src/zlib/%.o: src/zlib/%.c
+-	$(CC) $(CFLAGS) -o $@ -c $<
+-
+ src/tkdnd/TkDND_XDND.o: src/tkdnd/unix/TkDND_XDND.c
+ 	$(MAKE) -C src/tkdnd/ -f Makefile CC="$(CC)" LINK="$(LINK)" CFLAGS="$(CFLAGS)" \
+ 	       LDFLAGS="$(LDFLAGS)" TCL_VERSION="$(TCL_VERSION)" TCL_INCLUDE="$(TCL_INCLUDE)" \
+Index: COPYING
+===================================================================
+--- COPYING	(revision 1867)
++++ COPYING	(working copy)
+@@ -10,9 +10,8 @@
+ 
+ The only files in Scid NOT distributed under the GPL (since they have
+ a different author and copyright, but they are freely distributable)
+-are the Zlib library (see the src/zlib directory), a Tcl package
+-for sending email using SMTP (see the tcl/ezsmtp directory), and
+-endgame tablebase decoding source code (see the src/egtb directory).
++are a Tcl package for sending email using SMTP (see the tcl/ezsmtp directory),
++and endgame tablebase decoding source code (see the src/egtb directory)
+ 
+ Please note: although there is no explicit copyright notice in the
+ tablebase decoding code, all rights are reserved by its author
+Index: tcl/file/epd.tcl
+===================================================================
+--- tcl/file/epd.tcl	(revision 1867)
++++ tcl/file/epd.tcl	(working copy)
+@@ -108,9 +108,6 @@
+   }
+   set new_types { {"EPD files" {".epd"} } }
+   set open_types $new_types
+-  if {[sc_info gzip]} {
+-    set open_types { {"EPD files" {".epd" ".epd.gz"} } }
+-  }
+   if {$fname == ""} {
+     if {$cmd == "create"} {
+       set fname [tk_getSaveFile -initialdir $::initialDir(epd) -filetypes $new_types -title "Create an EPD file"]
+Index: tcl/windows/eco.tcl
+===================================================================
+--- tcl/windows/eco.tcl	(revision 1867)
++++ tcl/windows/eco.tcl	(working copy)
+@@ -282,9 +282,6 @@
+   global ecoFile
+ 
+   set ftype { { "Scid ECO files" {".eco"} } }
+-  if {[sc_info gzip]} {
+-    set ftype { { "Scid ECO files" {".eco" ".eco.gz"} } }
+-  }
+   set fullname [tk_getOpenFile -initialdir [pwd] -filetypes $ftype -title "Load ECO file"]
+   if {[string compare $fullname ""]} {
+     if {[catch {sc_eco read $fullname} result]} {
+Index: tcl/tools/import.tcl
+===================================================================
+--- tcl/tools/import.tcl	(revision 1867)
++++ tcl/tools/import.tcl	(working copy)
+@@ -251,18 +251,10 @@
+     tk_messageBox -type ok -icon error -title "Scid: Error" -message $err
+     return
+   }
+-  if {[sc_info gzip]} {
+-    set ftypes {
+-      { "Portable Game Notation files" {".pgn" ".PGN" ".pgn.gz"} }
+-      { "Text files" {".txt" ".TXT"} }
+-      { "All files" {"*"} }
+-    }
+-  } else {
+-    set ftypes {
+-      { "Portable Game Notation files" {".pgn" ".PGN"} }
+-      { "Text files" {".txt" ".TXT"} }
+-      { "All files" {"*"} }
+-    }
++  set ftypes {
++    { "Portable Game Notation files" {".pgn" ".PGN"} }
++    { "Text files" {".txt" ".TXT"} }
++    { "All files" {"*"} }
+   }
+   set fnames [tk_getOpenFile -multiple 1 -initialdir $::initialDir(pgn) -filetypes $ftypes -title "Import from PGN files" ]
+   if {$fnames == ""} { return }
+Index: tcl/file.tcl
+===================================================================
+--- tcl/file.tcl	(revision 1867)
++++ tcl/file.tcl	(working copy)
+@@ -132,20 +132,11 @@
+     return
+   }
+ 
+-  if {[sc_info gzip]} {
+-    set ftype {
+-      { {All Scid files} {.si4 .si3 .pgn .PGN .pgn.gz .epd .epd.gz} }
+-      { {Scid databases} {.si4 .si3} }
+-      { {PGN files} {.pgn .PGN .pgn.gz} }
+-      { {EPD files} {.epd .EPD .epd.gz} }
+-    }
+-  } else {
+-    set ftype {
+-      { {All Scid files} {.si4 .si3 .pgn .PGN .epd} }
+-      { {Scid databases} {.si4 .si3} }
+-      { {PGN files} {.pgn .PGN} }
+-      { {EPD files} {.epd .EPD} }
+-    }
++  set ftype {
++    { {All Scid files} {.si4 .si3 .pgn .PGN .epd} }
++    { {Scid databases} {.si4 .si3} }
++    { {PGN files} {.pgn .PGN} }
++    { {EPD files} {.epd .EPD} }
+   }
+   if {$fName == ""} {
+     if {! [file isdirectory $::file::finder::data(dir)] } {
+@@ -546,18 +537,10 @@
+   }
+ 
+   if {$fName == ""} {
+-    if {[sc_info gzip]} {
+-      set ftype {
+-        { "Scid databases, PGN files" {".si4" ".si3" ".pgn" ".PGN" ".pgn.gz"} }
+-        { "Scid databases" {".si4" ".si3"} }
+-        { "PGN files" {".pgn" ".PGN" ".pgn.gz"} }
+-      }
+-    } else {
+-      set ftype {
+-        { "Scid databases, PGN files" {".si4" ".si3" ".pgn" ".PGN"} }
+-        { "Scid databases" {".si4" ".si3"} }
+-        { "PGN files" {".pgn" ".PGN"} }
+-      }
++    set ftype {
++      { "Scid databases, PGN files" {".si4" ".si3" ".pgn" ".PGN"} }
++      { "Scid databases" {".si4" ".si3"} }
++      { "PGN files" {".pgn" ".PGN"} }
+     }
+     if {! [file isdirectory $::initialDir(base)] } {
+       set ::initialDir(base) $::env(HOME)
+Index: Makefile.conf.darwin
+===================================================================
+--- Makefile.conf.darwin	(revision 1867)
++++ Makefile.conf.darwin	(working copy)
+@@ -48,9 +48,6 @@
+ TB = @TB@
+ 
+ ### SCIDFLAGS: Scid customization flags.
+-#      Use -DZLIB if your system does not have zlib and you need
+-#      to include the code in the src/zlib directory.
+-#      The default is to use the system zlib library.
+ 
+ SCIDFLAGS = @SCIDFLAGS@
+ 
+@@ -106,21 +103,8 @@
+       src/polyglot/parse.o src/polyglot/pgn.o src/polyglot/piece.o src/polyglot/random.o \
+       src/polyglot/san.o src/polyglot/search.o src/polyglot/square.o src/polyglot/util.o
+ 
+-### ZLIBOBJS: object files in the zlib compression library.
++### OBJS: Will be "$(SCIDOBJS)", "$(POLYGLOTOBJS)"
+ 
+-ZLIBOBJS= src/zlib/adler32.o src/zlib/compress.o src/zlib/crc32.o \
+-      src/zlib/gzio.o src/zlib/uncompr.o src/zlib/deflate.o src/zlib/trees.o \
+-      src/zlib/zutil.o src/zlib/inflate.o src/zlib/infblock.o \
+-      src/zlib/inftrees.o src/zlib/infcodes.o src/zlib/infutil.o \
+-      src/zlib/inffast.o
+-       
+-### ZLIB: Should be "-lz" if your system has zlib, "" otherwise.
+-
+-ZLIB = @ZLIB@
+-
+-### OBJS: Will be "$(SCIDOBJS)", "$(POLYGLOTOBJS)", and also "$(ZLIBOBJS)" if they are
+-#      needed on your system.
+-
+ OBJS= @OBJS@
+ 
+ ### TCLS: all the .tcl files that make up "scid".
+@@ -242,7 +226,7 @@
+ 	rm -rf ./dist
+ 
+ clean:
+-	rm -f game.* tkscid.so position.* src/*.o src/zlib/*.o src/zlib/*.a src/polyglot/*.o $(EXECS) scid $(SCRIPTS)
++	rm -f game.* tkscid.so position.* src/*.o src/polyglot/*.o $(EXECS) scid $(SCRIPTS)
+ 	cd engines/phalanx/ && make clean && cd ../../
+ 	cd engines/toga/src/ && make clean && cd ../../../
+ 
+@@ -379,30 +363,30 @@
+ scmerge: src/scmerge.o src/misc.o src/index.o src/date.o src/namebase.o \
+           src/gfile.o src/bytebuf.o src/textbuf.o src/myassert.o \
+           src/stralloc.o src/position.o
+-	$(LINK) $(LDFLAGS) -o scmerge src/scmerge.o $(OBJS) $(ZLIB)
++	$(LINK) $(LDFLAGS) -o scmerge src/scmerge.o $(OBJS)
+ 
+ pgnscid: src/pgnscid.o $(OBJS)
+-	$(LINK) $(LDFLAGS) -o pgnscid src/pgnscid.o $(OBJS) $(ZLIB) $(TCL_LIBRARY)
++	$(LINK) $(LDFLAGS) -o pgnscid src/pgnscid.o $(OBJS) $(TCL_LIBRARY)
+ 
+ scidlet: src/scidlet.o src/engine.o src/recog.o src/misc.o src/position.o \
+           src/dstring.o src/movelist.o src/myassert.o
+ 	$(LINK) $(LDFLAGS) -o scidlet src/scidlet.o src/engine.o src/recog.o src/misc.o src/position.o src/movelist.o src/dstring.o src/myassert.o $(TCL_LIBRARY)
+ 
+ scidt: src/scidt.o $(OBJS)
+-	$(LINK) $(LDFLAGS) -o scidt src/scidt.o $(OBJS) $(ZLIB) $(TCL_LIBRARY)
++	$(LINK) $(LDFLAGS) -o scidt src/scidt.o $(OBJS) $(TCL_LIBRARY)
+ 
+ tkscid: src/tkscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o \
+           src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o
+-	$(LINK) $(LDFLAGS) -o tkscid src/tkscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(ZLIB) $(TK_LIBRARY)
++	$(LINK) $(LDFLAGS) -o tkscid src/tkscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(TK_LIBRARY)
+ 
+ tcscid: src/tcscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o \
+           src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o
+-	$(LINK) $(LDFLAGS) -o tcscid src/tcscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(ZLIB) $(TCL_LIBRARY)
++	$(LINK) $(LDFLAGS) -o tcscid src/tcscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(TCL_LIBRARY)
+ 
+ # eco2epd is now optional extra program NOT compiled by default, since
+ # scid now reads the .eco file format directly.
+ eco2epd: src/eco2epd.o $(OBJS) src/pbook.o
+-	$(LINK) $(LDFLAGS) -o eco2epd src/eco2epd.o $(OBJS) src/pbook.o $(ZLIB)
++	$(LINK) $(LDFLAGS) -o eco2epd src/eco2epd.o $(OBJS) src/pbook.o
+ 
+ ### Rules to create .o files from .cpp files:
+ 
+@@ -422,9 +406,4 @@
+ %.o: %.cpp
+ 	$(CXX) $(CXXFLAGS) $(TCL_INCLUDE) -o $@ -c $<
+ 
+-### Rule for compiling zlib source files:
+-
+-src/zlib/%.o: src/zlib/%.c
+-	$(CC) $(CFLAGS) -o $@ -c $<
+-
+ ### End of Makefile
+Index: Makefile.vc
+===================================================================
+--- Makefile.vc	(revision 1867)
++++ Makefile.vc	(working copy)
+@@ -140,11 +140,8 @@
+ DND_LIBS	= $(DND_LIBS_DIR)\user32.lib $(DND_LIBS_DIR)\shell32.lib $(DND_LIBS_DIR)\ole32.lib 
+ 
+ ##	SCID_FLAGS: Scid customization flags.
+-#	Use -DZLIB if your system does not have zlib and you need
+-#	to include the code in the src/zlib directory.
+-#	The default is to use the system zlib library.
+ 
+-SCID_FLAGS	= -DZLIB
++SCID_FLAGS	=
+ 
+ ##	SCID_TB: Tablebase support.
+ #	for no tablebase reading capability.
+@@ -173,24 +170,6 @@
+ 	tcscid.exe
+ #	tkscid.exe (unused)
+ 
+-##	ZLIB_OBJS: obj. files in the zlib compression library.
+-
+-ZLIB_OBJS = \
+-	$(TMP_DIR)\adler32.obj \
+-	$(TMP_DIR)\compress.obj \
+-	$(TMP_DIR)\crc32.obj \
+-	$(TMP_DIR)\gzio.obj \
+-	$(TMP_DIR)\uncompr.obj \
+-	$(TMP_DIR)\deflate.obj \
+-	$(TMP_DIR)\trees.obj \
+-	$(TMP_DIR)\zutil.obj \
+-	$(TMP_DIR)\inflate.obj \
+-	$(TMP_DIR)\infblock.obj \
+-	$(TMP_DIR)\inftrees.obj \
+-	$(TMP_DIR)\infcodes.obj \
+-	$(TMP_DIR)\infutil.obj \
+-	$(TMP_DIR)\inffast.obj
+-
+ POL_OBJS = \
+       $(TMP_DIR)\pol\attack.obj \
+       $(TMP_DIR)\pol\board.obj \
+@@ -223,7 +202,6 @@
+ #	files that most of the Scid programs use.
+ 
+ SCID_OBJS= \
+-      $(ZLIB_OBJS) \
+       $(POL_OBJS) \
+       $(TMP_DIR)\misc.obj \
+       $(TMP_DIR)\index.obj \
+@@ -448,9 +426,6 @@
+ {src\egtb}.c{$(TMP_DIR)}.obj:
+ 	$(CC) $(CFLAGS) -Fo$(TMP_DIR)\ $<
+ 
+-{src\zlib}.c{$(TMP_DIR)}.obj:
+-	$(CC) $(CFLAGS) -Fo$(TMP_DIR)\ $<
+-	
+ .rc{$(TMP_DIR)}.res:
+ 	$(RC) -r -Fo$(TMP_DIR)\$(@B).res $<
+ 
+Index: Makefile.mingwx
+===================================================================
+--- Makefile.mingwx	(revision 1867)
++++ Makefile.mingwx	(working copy)
+@@ -39,11 +39,8 @@
+ TB = -DSCID_USE_TB -DT41_INCLUDE
+ 
+ ### SCIDFLAGS: Scid customization flags.
+-#      Use -DZLIB if your system does not have zlib and you need
+-#      to include the code in the src/zlib directory.
+-#      The default is to use the system zlib library.
+ 
+-SCIDFLAGS = -DZLIB
++SCIDFLAGS =
+ 
+ WARNINGS = -Wall
+ 
+@@ -71,17 +68,9 @@
+       src/polyglot/parse.o src/polyglot/pgn.o src/polyglot/piece.o src/polyglot/random.o \
+       src/polyglot/san.o src/polyglot/search.o src/polyglot/square.o src/polyglot/util.o
+ 
+-### ZLIBOBJS: object files in the zlib compression library.
+-
+-ZLIBOBJS= src/zlib/adler32.o src/zlib/compress.o src/zlib/crc32.o \
+-      src/zlib/gzio.o src/zlib/uncompr.o src/zlib/deflate.o src/zlib/trees.o \
+-      src/zlib/zutil.o src/zlib/inflate.o src/zlib/infblock.o \
+-      src/zlib/inftrees.o src/zlib/infcodes.o src/zlib/infutil.o \
+-      src/zlib/inffast.o
+-
+ ### OBJS: all standard object files for scid.
+ 
+-OBJS= $(SCIDOBJS) $(ZLIBOBJS)
++OBJS= $(SCIDOBJS)
+ 
+ LANGUAGES = tcl/lang/czech.tcl tcl/lang/deutsch.tcl tcl/lang/francais.tcl tcl/lang/greek.tcl tcl/lang/hungary.tcl tcl/lang/italian.tcl tcl/lang/norsk.tcl tcl/lang/polish.tcl tcl/lang/portbr.tcl tcl/lang/nederlan.tcl tcl/lang/spanish.tcl tcl/lang/serbian.tcl tcl/lang/swedish.tcl
+ 
+@@ -172,7 +161,7 @@
+ 	$(RC) -O coff scid.rc scid.coff
+ 
+ clean:
+-	rm -f src/*.o src/zlib/*.o src/polyglot/*.o $(EXECS) scid.gui scid.coff
++	rm -f src/*.o src/polyglot/*.o $(EXECS) scid.gui scid.coff
+ 	$(MAKE) -C src/tkdnd/ -f Makefile.mingwx clean
+ 
+ strip:
+Index: Makefile.mingw
+===================================================================
+--- Makefile.mingw	(revision 1867)
++++ Makefile.mingw	(working copy)
+@@ -55,13 +55,13 @@
+ LFLAGS = $(PROFILE)
+ 
+ ### CPPFLAGS: C++ compiler flags
+-CPPFLAGS = -DZLIB -DWIN32 $(OPT) $(CPPOPT) $(PROFILE) $(WARNINGS)
++CPPFLAGS = -DWIN32 $(OPT) $(CPPOPT) $(PROFILE) $(WARNINGS)
+ 
+ ### CPPFLAGSNOWARN: C++ compiler flags without warnings
+-CPPFLAGSNOWARN = -DZLIB -DWIN32 $(OPT) $(CPPOPT) $(PROFILE)
++CPPFLAGSNOWARN = -DWIN32 $(OPT) $(CPPOPT) $(PROFILE)
+ 
+ ### CFLAGS: C (not C++) compiler flags
+-CFLAGS = -DZLIB -DWIN32 $(OPT) $(PROFILE)
++CFLAGS = -DWIN32 $(OPT) $(PROFILE)
+ 
+ 
+ ### EXECS: all the evecutable programs compiled from C++ files.
+@@ -84,18 +84,8 @@
+       src\polyglot\san.o src\polyglot\search.o src\polyglot\square.o src\polyglot\util.o
+ 
+ 
+-### ZLIBOBJS: object files in the zlib compression library.
+-###
+-ZLIBOBJS= src\zlib\adler32.obj src\zlib\compress.obj src\zlib\crc32.obj \
+-      src\zlib\gzio.obj src\zlib\uncompr.obj src\zlib\deflate.obj \
+-      src\zlib\trees.obj src\zlib\zutil.obj src\zlib\inflate.obj \
+-      src\zlib\infblock.obj src\zlib\inftrees.obj src\zlib\infcodes.obj \
+-      src\zlib\infutil.obj src\zlib\inffast.obj
++OBJS= $(SCIDOBJS)
+ 
+-### OBJS: all standard object files for scid.
+-###
+-OBJS= $(SCIDOBJS) $(ZLIBOBJS)
+-
+ ### LANGUAGES: all the extra language files for scid.
+ LANGUAGES = tcl\lang\deutsch.tcl tcl\lang\francais.tcl tcl\lang\italian.tcl
+       tcl\lang\nederlan.tcl tcl\lang\spanish.tcl tcl\lang\portbr.tcl tcl\lang\swedish.tcl \
+@@ -199,7 +189,7 @@
+ 
+ ### To remove object and executable files: type "make clean"
+ clean:
+-	-del src\*.obj src\zlib\*.obj $(EXECS) scid.gui
++	-del src\*.obj $(EXECS) scid.gui
+ 
+ 
+ src\tcscid.obj: src\tkscid.cpp
+Index: Makefile.cygwin
+===================================================================
+--- Makefile.cygwin	(revision 1867)
++++ Makefile.cygwin	(working copy)
+@@ -49,12 +49,9 @@
+ TB = -DSCID_USE_TB
+ 
+ ### SCIDFLAGS: Scid customization flags.
+-#      Use -DZLIB if your system does not have zlib and you need
+-#      to include the code in the src/zlib directory.
+-#      The default is to use the system zlib library.
+-#
+-SCIDFLAGS =  -DZLIB
+ 
++SCIDFLAGS =
++
+ ### OPTIMIZE: Optimization options for C++ compiler.
+ #      -O4 is the most optimization for g++. I have found -O2 to do
+ #      just as well, but someone reported a noticable difference in speed
+@@ -83,10 +80,6 @@
+ #
+ CPP_FLAGS = $(PROFILE) $(OPTIMIZE) $(WARNINGS) $(DEBUG) $(SCIDFLAGS)
+ 
+-### CFLAGS: Flags for C compilation (only used for compiling zlib).
+-#
+-CFLAGS = -O2 -Wall $(PROFILE)
+-
+ ### LANGUAGES: List of additional Tcl files to include in Scid for
+ #       multi-language menu support.
+ #       By default, it is all the contributed languages, but you
+@@ -118,21 +111,10 @@
+       src/myassert.o src/stralloc.o src/mfile.o src/dstring.o src/pgnparse.o \
+       src/stored.o src/movelist.o
+ 
+-### ZLIBOBJS: object files in the zlib compression library.
+-#
+-ZLIBOBJS= src/zlib/adler32.o src/zlib/compress.o src/zlib/crc32.o \
+-      src/zlib/gzio.o src/zlib/uncompr.o src/zlib/deflate.o src/zlib/trees.o \
+-      src/zlib/zutil.o src/zlib/inflate.o src/zlib/infblock.o \
+-      src/zlib/inftrees.o src/zlib/infcodes.o src/zlib/infutil.o \
+-      src/zlib/inffast.o
+ 
+-### ZLIB: Should be "-lz" if your system has zlib, "" otherwise.
+-#
+-ZLIB = 
++### OBJS: Will be "$(SCIDOBJS)"
+ 
+-### OBJS: Will be "$(SCIDOBJS)", and also "$(ZLIBOBJS)" if they are
+-#      needed on your system.
+-OBJS= $(SCIDOBJS) $(ZLIBOBJS)
++OBJS= $(SCIDOBJS)
+ 
+ ### TCLS: all the .tcl files that make up "scid".
+ #
+@@ -212,7 +194,7 @@
+ ### To remove object and executable files: type "make clean".
+ #
+ clean:
+-	rm -f src/*.o src/zlib/*.o $(EXECS) scid $(SCRIPTS)
++	rm -f src/*.o $(EXECS) scid $(SCRIPTS)
+ 
+ ### To make the executable files smaller: type "make strip".
+ #
+@@ -284,10 +266,10 @@
+ scmerge.exe: src/scmerge.o src/misc.o src/index.o src/date.o src/namebase.o \
+ 	  src/gfile.o src/bytebuf.o src/textbuf.o src/myassert.o \
+ 	  src/stralloc.o
+-	$(LINK) -o $@ src/scmerge.o $(OBJS) $(ZLIB)
++	$(LINK) -o $@ src/scmerge.o $(OBJS)
+ 
+ pgnscid.exe: src/pgnscid.o $(OBJS)
+-	$(LINK) $(PROFILE) -o $@ src/pgnscid.o $(OBJS) $(ZLIB)
++	$(LINK) $(PROFILE) -o $@ src/pgnscid.o $(OBJS)
+ 
+ scidlet.exe: src/scidlet.o src/engine.o src/recog.o src/misc.o src/position.o \
+           src/dstring.o src/movelist.o src/myassert.o
+@@ -295,20 +277,20 @@
+ 
+ 
+ scidt.exe: src/scidt.o $(OBJS)
+-	$(LINK) -o $@ src/scidt.o $(OBJS) $(ZLIB)
++	$(LINK) -o $@ src/scidt.o $(OBJS)
+ 
+ tkscid.exe: src/tkscid.o $(OBJS) src/tree.o src/filter.o \
+ 	 src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o
+-	$(LINK) -o $@ src/tkscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(ZLIB) $(TK_LIBRARY)
++	$(LINK) -o $@ src/tkscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(TK_LIBRARY)
+ 
+ tcscid.exe: src/tcscid.o $(OBJS) src/tree.o src/filter.o \
+ 	  src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o
+-	$(LINK) -o tcscid src/tcscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(ZLIB) $(TCL_LIBRARY)
++	$(LINK) -o tcscid src/tcscid.o $(OBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(TCL_LIBRARY)
+ 
+ # eco2epd is now optional extra program NOT compiled by default, since
+ # scid now reads the .eco file format directly.
+ eco2epd: src/eco2epd.o $(OBJS) src/pbook.o
+-	$(LINK) -o eco2epd src/eco2epd.o $(OBJS) src/pbook.o $(ZLIB)
++	$(LINK) -o eco2epd src/eco2epd.o $(OBJS) src/pbook.o
+ 
+ ### Rules to create .o files from .cpp files:
+ #
+@@ -329,9 +311,4 @@
+ %.o: %.cpp
+ 	$(COMPILE) $(CPP_FLAGS) -o $@ -c $<
+ 
+-### Rule for compiling zlib source files:
+-#
+-src/zlib/%.o: src/zlib/%.c
+-	$(CC) $(CFLAGS) -o $@ -c $<
+-
+ ### End of Makefile

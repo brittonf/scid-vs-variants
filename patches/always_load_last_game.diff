@@ -1,0 +1,36 @@
+Ignore base auto-load, and always load last game (mainly useful for pgn archives).
+NB - We can't show the current game in the gamelist when opened from the command line as gamelist isnt created yet
+
+Index: tcl/end.tcl
+===================================================================
+--- tcl/end.tcl	(revision 2254)
++++ tcl/end.tcl	(working copy)
+@@ -2012,7 +2012,7 @@
+       set initialDir(file) [file tail $startbase]
+       # this sets initialDir(file) for all files, not just pgn... 
+       # but initialDir(file) is only (currently) used when saving pgn S.A.
+-      catch {sc_game load auto}
++      catch {sc_game load [sc_filter last]}
+       flipBoardForPlayerNames
+     }
+   }
+Index: tcl/file.tcl
+===================================================================
+--- tcl/file.tcl	(revision 2254)
++++ tcl/file.tcl	(working copy)
+@@ -229,13 +229,14 @@
+ 	::recentFiles::add $fName
+ 	set ::initialDir(pgn) [file dirname $fName]
+ 	set ::initialDir(file) [file tail $fName]
++        
+       }
+     }
+   }
+ 
+   set ::glstart 1
+   if {$err == 0} {
+-    catch {sc_game load auto}
++    catch {sc_game load [sc_filter last]}
+     flipBoardForPlayerNames
+     set ::glistFlipped([sc_base current]) $::flippedForPlayer
+     if {[sc_game number] != 1 && [winfo exists .glistWin]} {

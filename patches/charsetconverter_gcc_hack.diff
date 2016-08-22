@@ -1,0 +1,17 @@
+raspberry pi / ubuntu charsetconverter bug
+
+https://sourceforge.net/p/scidvspc/tickets/1/
+
+Index: src/charsetconverter.cpp
+===================================================================
+--- src/charsetconverter.cpp	(revision 2531)
++++ src/charsetconverter.cpp	(working copy)
+@@ -91,7 +91,7 @@
+ } // namespace
+ 
+ 
+-#define _ -1
++#define _ (char)-1
+ static char const CP850Weight[256] =
+ {
+   0, 0, 0, 0, 0, 0, 0, 0, // 00 ... 07

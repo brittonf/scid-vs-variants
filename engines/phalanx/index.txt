@@ -1,0 +1,58 @@
+  Phalanx
+
+  ____________________________________________________________
+
+  Table of Contents
+
+
+  1. Main
+
+
+  ______________________________________________________________________
+
+
+  1.  Main
+
+  Phalanx is an old, popular chess engine, with an interesting history.
+
+  Since 2014, Phalanx is now under active coding by the original owner,
+  Dusan Dobes
+
+  Phalanx Homepage <https://phalanx.svn.sourceforge.net>
+
+  The latest code can be obtained from subversion with to {svn co
+  https://phalanx.svn.sourceforge.net/svnroot/phalanx}
+
+   Quotes
+
+     Chessbase.com, May 28th, 2000 <http://www.chessbase.com/sup-
+        port/support.asp?pid=100>
+        PhalanxXXII was the most interesting of the seven engines (in my
+        opinion). I was looking forward to a wild sacrificial game
+        against it (based on the engine's description at the ChessBase
+        GmbH site), but Phalanx fooled me. I played a couple of games
+        against it immediately after replaying a couple of Steinitz'
+        games from Reti's book Masters of the Chessboard. Steinitz was
+        the master of the pawn push. He often drove his pawns
+        relentlessly forward to deny space to his opponent. To my
+        surprise (I might even say "shock"), Phalanx does the same
+        thing. Control of space is evidently given high priority in its
+        evaluation algorithm. As I played against Phalanx, it seemed
+        intent on throttling me ("python-like", to use the hoary old
+        stereotype). I give this program high marks for positional play
+        -- the pawn pushes it made were all strong ones, and it never
+        gave my Knights a chance to exploit any holes it may have
+        created. Despite the relatively low rating range in "Handicap
+        and fun" mode (1150-1950), Phalanx was without question the most
+        unique and interesting of the seven engines and I'm looking
+        forward to my next game against it.
+
+     Juergen Haas, About.com <http://linux.about.com/cs/linux101/g/pha-
+        lanx.htm>
+        Definition: phalanx: Chess playing program. Phalanx is a simple
+        chess playing program of conventional design. It is xboard
+        compatible. The main aim is to write a slow thinker with a lot
+        of chess specific knowledge. Current version plays risky, active
+        chess and shows quite good tactical performance.
+
+

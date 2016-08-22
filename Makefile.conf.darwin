@@ -1,0 +1,471 @@
+! Makefile.conf
+!    Makefile template for OSX/Darwin
+!
+! This file is NOT an actual Makefile; it is a template file used by 
+! the configure program to produce the actual Makefile for Scid with
+! approriate settings for your system. Just type "./configure" in the 
+! current directory to run the configuration program.
+!
+! All lines starting with "!" (such as these) are removed, and certain
+! variables enclosed in "@" symbols (such as @TCL_VERSION@) are set.
+!
+##### Makefile for Scid for Unix operating systems.
+
+CXX = @CXX@
+CC = @CC@
+LINK = @LINK@
+BASH_ENV = @BASH_ENV@
+
+# BINDIR: where the Scid programs are copied for "make install".
+
+BINDIR = @BINDIR@
+
+SHAREDIR = @SHAREDIR@
+
+FONTDIR = @FONTDIR@
+
+### TCL_VERSION: Set this according to the version of Tcl/Tk you have
+#   installed that you want Scid to use: 8.5 / 8.6 / ...
+
+TCL_VERSION = @TCL_VERSION@
+
+# TCL_INCLUDE, TCL_LIBRARY, TK_LIBRARY: these are the compiler options
+#    needed for linking Scid with Tcl/Tk.  The program "./configure"
+#    will try to determine them automatically, but if it cannot, you
+#    can use the examples below for help in setting these variables.
+#
+# @CONFIG_RESULT@
+
+TCL_INCLUDE = @TCL_INCLUDE@
+TCL_LIBRARY = @TCL_LIBRARY@
+TK_LIBRARY  = @TK_LIBRARY@
+
+### Nalimov tablebases
+# TB =                   for no tablebase support
+# TB = -DSCID_USE_TB     for tablebase support
+# TB = -DSCID_USE_TB -DT41_INCLUDE
+#                        for use of 4-1 (King + 3 pieces vs lone king) tablebases.
+
+TB = @TB@
+
+### SCIDFLAGS: Scid customization flags.
+#      Use -DZLIB if your system does not have zlib and you need
+#      to include the code in the src/zlib directory.
+#      The default is to use the system zlib library.
+
+SCIDFLAGS = @SCIDFLAGS@
+
+### DEBUG: Defining the macro ASSERTIONS will turn on assertions, which
+#       helps to track bugs after modifications, but the programs will run 
+#       a little faster with assertions turned off.
+
+DEBUG = @DEBUG@
+
+WARNINGS = @WARNINGS@
+
+#      On some systems, adding "-fno-rtti" and "-fno-exceptions" produces
+#      smaller, faster programs since Scid does not use those C++ features.
+
+CFLAGS = @CFLAGS@ $(WARNINGS) $(DEBUG)
+
+CXXFLAGS = @CXXFLAGS@ $(CFLAGS) $(SCIDFLAGS)
+
+LDFLAGS = @LDFLAGS@
+
+### LANGUAGES: List of additional Tcl files to include in Scid for
+#       multi-language menu support.
+#       By default, it is all the contributed languages, but you
+#       can reduce the size of the Scid program by only specifying
+#       the languages you want supported.
+
+LANGUAGES = @LANGUAGES@
+
+
+############################################################
+#
+# You should not need to edit anything below this line.
+#
+############################################################
+
+### EXECS: executable programs compiled from C++ files.
+# Note: scidt and eco2epd are obsolete and not compiled by default.
+
+EXECS= pgnscid tkscid tcscid scmerge scidlet
+
+### SCIDOBJS: not all the .o files that make up Scid, just the standard ones 
+#     that most of the programs include.
+
+SCIDOBJS= src/misc.o src/index.o src/date.o src/namebase.o src/position.o \
+      src/game.o src/gfile.o src/matsig.o src/bytebuf.o src/textbuf.o \
+      src/myassert.o src/stralloc.o src/mfile.o src/dstring.o src/pgnparse.o \
+      src/stored.o src/movelist.o \
+      src/polyglot/attack.o src/polyglot/board.o src/polyglot/book.o \
+      src/polyglot/book_make.o src/polyglot/book_merge.o src/polyglot/colour.o \
+      src/polyglot/fen.o src/polyglot/game.o src/polyglot/hash.o \
+      src/polyglot/io.o src/polyglot/line.o src/polyglot/list.o src/polyglot/main.o src/polyglot/move.o \
+      src/polyglot/move_do.o src/polyglot/move_gen.o src/polyglot/move_legal.o src/polyglot/option.o \
+      src/polyglot/parse.o src/polyglot/pgn.o src/polyglot/piece.o src/polyglot/random.o \
+      src/polyglot/san.o src/polyglot/search.o src/polyglot/square.o src/polyglot/util.o
+
+CHARSETCONVOBJS= src/charsetdetector.o src/charsetconverter.o \
+      src/universalchardet/CharDistribution.o src/universalchardet/JpCntx.o \
+      src/universalchardet/LangBulgarianModel.o src/universalchardet/LangCyrillicModel.o \
+      src/universalchardet/LangGreekModel.o src/universalchardet/LangHebrewModel.o \
+      src/universalchardet/LangHungarianModel.o src/universalchardet/LangThaiModel.o \
+      src/universalchardet/nsBig5Prober.o src/universalchardet/nsCharSetProber.o \
+      src/universalchardet/nsEscCharsetProber.o src/universalchardet/nsEscSM.o \
+      src/universalchardet/nsEUCJPProber.o src/universalchardet/nsEUCKRProber.o \
+      src/universalchardet/nsEUCTWProber.o src/universalchardet/nsGB2312Prober.o \
+      src/universalchardet/nsHebrewProber.o src/universalchardet/nsLatin1Prober.o \
+      src/universalchardet/nsMBCSGroupProber.o src/universalchardet/nsMBCSSM.o \
+      src/universalchardet/nsSBCharSetProber.o src/universalchardet/nsSBCSGroupProber.o \
+      src/universalchardet/nsSJISProber.o src/universalchardet/nsUniversalDetector.o \
+      src/universalchardet/nsUTF8Prober.o
+
+### ZLIBOBJS: object files in the zlib compression library.
+
+ZLIBOBJS= src/zlib/adler32.o src/zlib/compress.o src/zlib/crc32.o \
+      src/zlib/gzio.o src/zlib/uncompr.o src/zlib/deflate.o src/zlib/trees.o \
+      src/zlib/zutil.o src/zlib/inflate.o src/zlib/infblock.o \
+      src/zlib/inftrees.o src/zlib/infcodes.o src/zlib/infutil.o \
+      src/zlib/inffast.o
+       
+### ZLIB: Should be "-lz" if your system has zlib, "" otherwise.
+
+ZLIB = @ZLIB@
+
+### OBJS: Will be "$(SCIDOBJS)", "$(POLYGLOTOBJS)", and also "$(ZLIBOBJS)" if they are
+#      needed on your system.
+
+OBJS= @OBJS@
+
+### TCLS: all the .tcl files that make up "scid".
+
+TCLS= \
+  tcl/start.tcl \
+  tcl/config.tcl \
+  tcl/bitmaps.tcl \
+  tcl/language.tcl \
+  tcl/utils.tcl \
+    tcl/utils/date.tcl tcl/utils/font.tcl tcl/utils/graph.tcl tcl/utils/history.tcl \
+    tcl/utils/pane.tcl tcl/utils/sound.tcl tcl/utils/string.tcl tcl/utils/tooltip.tcl \
+    tcl/utils/validate.tcl tcl/utils/win.tcl \
+  tcl/misc/misc.tcl tcl/htext.tcl \
+  tcl/file.tcl \
+    tcl/file/finder.tcl tcl/file/bookmark.tcl tcl/file/recent.tcl tcl/file/epd.tcl \
+    tcl/file/spellchk.tcl tcl/file/maint.tcl \
+  tcl/edit.tcl \
+  tcl/game.tcl \
+    tcl/game/browser.tcl \
+  tcl/windows.tcl \
+    tcl/windows/gamelist.tcl tcl/windows/pgn.tcl tcl/windows/book.tcl \
+    tcl/windows/comment.tcl tcl/windows/eco.tcl \
+    tcl/windows/stats.tcl tcl/windows/tree.tcl tcl/windows/crosstab.tcl \
+    tcl/windows/pfinder.tcl tcl/windows/tourney.tcl tcl/windows/switcher.tcl \
+  tcl/search/search.tcl \
+    tcl/search/board.tcl tcl/search/header.tcl tcl/search/material.tcl \
+  tcl/contrib/ezsmtp/ezsmtp.tcl \
+    tcl/tools/email.tcl \
+    tcl/tools/import.tcl \
+    tcl/tools/optable.tcl tcl/tools/preport.tcl tcl/tools/pinfo.tcl \
+    tcl/tools/analysis.tcl tcl/tools/comp.tcl tcl/tools/wbdetect.tcl \
+    tcl/tools/reper.tcl tcl/tools/graphs.tcl tcl/tools/tablebase.tcl tcl/tools/ptracker.tcl \
+  tcl/help/help.tcl tcl/help/tips.tcl \
+  tcl/menus.tcl tcl/board.tcl tcl/move.tcl tcl/main.tcl tcl/tools/correspondence.tcl \
+    tcl/lang/english.tcl \
+  tcl/tools/fics.tcl tcl/tools/uci.tcl tcl/end.tcl tcl/tools/tacgame.tcl tcl/tools/sergame.tcl tcl/tools/calvar.tcl tcl/tools/tactics.tcl tcl/tools/novag.tcl tcl/misc/flags.tcl tcl/tools/inputengine.tcl
+
+
+### SCRIPTS:
+# Small extra programs. Most are written in Tcl using tcscid, but
+# a few contributed ones may be in Python or other languages.
+
+SCRIPTS= sc_addmove sc_epgn sc_spell sc_eco sc_import sc_remote sc_tree scidpgn pgnfix spliteco
+
+####################
+
+### Type "make" or "make all" to make all programs:
+
+all: all_scid engines
+
+all_scid: scid $(SCRIPTS) $(EXECS)
+
+engines: phalanx toga
+
+phalanx:
+	$(MAKE) -C engines/phalanx/ -f Makefile CC="$(CC)" LINK="$(LINK)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
+
+toga:
+	$(MAKE) -C engines/toga/src -f Makefile CXX="$(CXX)" LINK="$(LINK)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)"
+
+### To copy all executables to $BINDIR, with read and execute permission 
+#   for all users, and put extra files in $SHAREDIR, type "make install".
+
+install: install_scid install_engines
+
+install_scid: all_scid
+	install -m 755 -d $(SHAREDIR)
+	install -m 755 -d $(BINDIR)
+	install -m 755 -d $(SHAREDIR)/data/
+	install -m 755 scid $(SCRIPTS) $(EXECS) $(BINDIR)
+	install -m 644 -p scid.eco $(SHAREDIR)/data/
+	install -m 644 -p spelling.ssp $(SHAREDIR)
+	install -m 755 -d $(SHAREDIR)/books
+	install -m 666 ./books/* $(SHAREDIR)/books/
+	install -m 755 -d $(SHAREDIR)/bases
+	install -m 666 ./bases/* $(SHAREDIR)/bases/
+	install -m 755 -d $(SHAREDIR)/html
+	install -m 755 -d $(SHAREDIR)/html/bitmaps/
+	install -m 755 -d $(SHAREDIR)/html/bitmaps/mini/
+	install -m 666 ./html/bitmaps/mini/* $(SHAREDIR)/html/bitmaps/mini/
+	install -m 666 ./html/bitmaps/* $(SHAREDIR)/html/bitmaps/
+	install -m 666 ./html/scid.* $(SHAREDIR)/html/
+	install -m 755 -d $(SHAREDIR)/lang/
+	@if [ "$(LANGUAGES)" != "" ]; then \
+		cp $(LANGUAGES) $(SHAREDIR)/lang/ ; \
+	fi
+	install -m 755 -d $(SHAREDIR)/bitmaps
+	install -m 666 ./bitmaps/* $(SHAREDIR)/bitmaps/
+	@if [ "`id -u`" -eq 0 ]; then \
+		install -m 644 -p fonts/*.ttf $(FONTDIR); \
+	else \
+		install -m 644 -p fonts/*.ttf ~/Library/Fonts; \
+	fi
+
+install_engines: engines
+	install -m 755 -d $(SHAREDIR)/engines
+	install -m 755 -d $(SHAREDIR)/engines/phalanx
+	install ./engines/phalanx/phalanx $(SHAREDIR)/engines/phalanx
+	install -m 755 -d $(SHAREDIR)/engines/toga
+	install ./engines/toga/src/fruit $(SHAREDIR)/engines/toga/
+
+uninstall:
+	rm -rf $(SHAREDIR)/engines
+	rm -rf $(SHAREDIR)/books
+	rm -rf $(SHAREDIR)/bases
+	rm -rf $(SHAREDIR)/data/
+	rm -f $(SHAREDIR)/data/scid.eco
+	rm -f $(SHAREDIR)/spelling.ssp
+	rm -f $(BINDIR)/scid $(BINDIR)/sc_addmove $(BINDIR)/sc_epgn
+	rm -f $(BINDIR)/sc_spell $(BINDIR)/sc_eco $(BINDIR)/sc_import
+	rm -f $(BINDIR)/sc_remote $(BINDIR)/sc_tree $(BINDIR)/scidpgn
+	rm -f $(BINDIR)/pgnfix $(BINDIR)/spliteco
+	rm -f $(BINDIR)/pgnscid $(BINDIR)/tkscid $(BINDIR)/tcscid
+	rm -f $(BINDIR)/scmerge $(BINDIR)/scidlet
+	rm -f $(BINDIR)/phalanx $(BINDIR)/fruit
+	rm -rf $(SHAREDIR)/html
+	rm -rf $(SHAREDIR)/lang
+	rm -rf $(SHAREDIR)/bitmaps
+	# Not going to uninstall OSX fonts....
+	# They all exist in the one directory, and don't want to trash it by accident
+
+#   Get us back to as nearly a fresh distro state as we can
+#
+
+distclean: clean
+	rm -f engines/toga/src/fruit
+	rm -rf ./dist
+
+clean:
+	rm -f game.* tkscid.so position.* src/*.o src/universalchardet/*.o src/zlib/*.o src/zlib/*.a src/polyglot/*.o $(EXECS) scid $(SCRIPTS)
+	cd engines/phalanx/ && make clean && cd ../../
+	cd engines/toga/src/ && make clean && cd ../../../
+
+strip:
+	strip $(EXECS)
+
+### To compress scid and executables with gzexe: type "make gzexe".
+
+gzexe:
+	gzexe $(EXECS) scid
+
+
+scid: $(TCLS)
+	rm -f ./scid
+	cat $(TCLS) > ./scid
+	chmod +x scid
+
+### Mac OSX App
+
+mac_app: all_scid engines mac_rename mac_buttons
+	install -m 755 -d dist/ScidvsMac.app/Contents/MacOS
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/data
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/books
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/bases
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/engines
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/engines/phalanx
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/engines/toga
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/html
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/html/bitmaps
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/html/bitmaps/mini
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/lang
+	install -m 755 -d dist/ScidvsMac.app/Contents/Resources/bitmaps
+	install -m 755 -d dist/images
+	install -m 755 $(SCRIPTS) $(EXECS) dist/ScidvsMac.app/Contents/MacOS
+	install -m 755 scid dist/ScidvsMac.app/Contents/MacOS
+	install -m 644 -p scid.eco dist/ScidvsMac.app/Contents/Resources/data/
+	install -m 644 -p spelling.ssp dist/ScidvsMac.app/Contents/Resources/
+	install -m 666 ./books/* dist/ScidvsMac.app/Contents/Resources/books/
+	install -m 666 ./bases/* dist/ScidvsMac.app/Contents/Resources/bases/
+	install -m 755 ./engines/phalanx/phalanx dist/ScidvsMac.app/Contents/Resources/engines/phalanx/
+	install -m 755 ./engines/toga/*.txt dist/ScidvsMac.app/Contents/Resources/engines/toga/
+	install -m 755 ./engines/toga/src/fruit dist/ScidvsMac.app/Contents/Resources/engines/toga/ 
+	install -m 644 icons/scid.icns dist/ScidvsMac.app/Contents/Resources/
+	install -m 644 Info.plist dist/ScidvsMac.app/Contents/
+	install -m 644 ./html/scid.* dist/ScidvsMac.app/Contents/Resources/html/
+	install -m 644 ./html/bitmaps/*.* dist/ScidvsMac.app/Contents/Resources/html/bitmaps/
+	install -m 644 ./html/bitmaps/mini/* dist/ScidvsMac.app/Contents/Resources/html/bitmaps/mini/
+	install -m 644 ./bitmaps/* dist/ScidvsMac.app/Contents/Resources/bitmaps/
+	install -m 644 ./README.html dist/
+	install -m 644 ./images/* dist/images/
+	@if [ "$(LANGUAGES)" != "" ]; then \
+		cp $(LANGUAGES) dist/ScidvsMac.app/Contents/Resources/lang/ ; \
+	fi
+
+mac_install: mac_app
+	install -m 755 -d /Applications/ScidvsMac.app
+	cp -rp dist/ScidvsMac.app/* /Applications/ScidvsMac.app
+
+### Compress App into an OSX disk image
+
+mac_dmg: mac_app
+	hdiutil create -fs "HFS+" -volname "Scid vs. PC" -srcfolder dist ScidvsMac.dmg
+
+# Change menu bindings and description
+
+mac_menus:
+	sed -i "" -e "s/Control-/Command-/g" -e "s/Ctrl+/Command-/g" tcl/menus.tcl
+
+mac_rename:
+	install_name_tool -change /Library/Frameworks/Tcl.framework/Versions/@TCL_VERSION@/Tcl \
+	@executable_path/../Frameworks/Tcl.framework/Versions/@TCL_VERSION@/Tcl tkscid
+	install_name_tool -change /Library/Frameworks/Tk.framework/Versions/@TCL_VERSION@/Tk \
+	@executable_path/../Frameworks/Tk.framework/Versions/@TCL_VERSION@/Tk tkscid
+	install_name_tool -change /Library/Frameworks/Tcl.framework/Versions/@TCL_VERSION@/Tcl \
+	@executable_path/../Frameworks/Tcl.framework/Versions/@TCL_VERSION@/Tcl tcscid
+mac_buttons:
+	# mac_buttons is called by mac_install_gui, so dont fail if patch fails
+	if ! patch -f -p0 scid <patches/swap_buttons-2-3.patch ; then echo 0 ; fi ;
+
+mac_install_gui: scid mac_buttons
+	install -m 755 scid /Applications/ScidvsMac.app/Contents/MacOS/
+	@if [ "$(LANGUAGES)" != "" ]; then \
+		cp $(LANGUAGES) /Applications/ScidvsMac.app/Contents/Resources/lang/ ; \
+	fi
+	/Applications/ScidvsMac.app/Contents/MacOS/scid
+
+mac:
+	@echo "mac_app, mac_install, mac_dmg, mac_menus, mac_rename, mac_buttons, mac_install_gui"
+
+sc_addmove: scripts/sc_addmove.tcl
+	cp scripts/sc_addmove.tcl ./sc_addmove
+	chmod +x sc_addmove
+
+sc_epgn: scripts/sc_epgn.tcl
+	cp scripts/sc_epgn.tcl ./sc_epgn
+	chmod +x sc_epgn
+
+sc_spell: scripts/sc_spell.tcl
+	cp scripts/sc_spell.tcl ./sc_spell
+	chmod +x sc_spell
+
+sc_eco: scripts/sc_eco.tcl
+	cp scripts/sc_eco.tcl ./sc_eco
+	chmod +x sc_eco
+
+sc_import: scripts/sc_import.tcl
+	cp scripts/sc_import.tcl ./sc_import
+	chmod +x sc_import
+
+sc_remote: scripts/sc_remote.tk
+	cp scripts/sc_remote.tk ./sc_remote
+	chmod +x sc_remote
+
+sc_tree: scripts/sc_tree.tcl
+	cp scripts/sc_tree.tcl ./sc_tree
+	chmod +x sc_tree
+
+sc_maketree: scripts/sc_maketree.tcl
+	cp scripts/sc_maketree.tcl ./sc_maketree
+	chmod +x sc_maketree
+
+scidpgn: scripts/scidpgn.tcl
+	cp scripts/scidpgn.tcl ./scidpgn
+	chmod +x scidpgn
+
+spliteco: scripts/spliteco.tcl
+	cp scripts/spliteco.tcl ./spliteco
+	chmod +x spliteco
+
+tbstats: scripts/tbstats.tcl
+	cp scripts/tbstats.tcl ./tbstats
+	chmod +x tbstats
+
+wmtest: scripts/wmtest.tk
+	cp scripts/wmtest.tk ./wmtest
+	chmod +x wmtest
+
+pgnfix: scripts/pgnfix.py
+	cp scripts/pgnfix.py ./pgnfix
+	chmod +x pgnfix
+
+eco2pgn: scripts/eco2pgn.py
+	cp scripts/eco2pgn.py ./eco2pgn
+	chmod +x eco2pgn
+
+twic2pgn: scripts/twic2pgn.py
+	cp scripts/twic2pgn.py ./twic2pgn
+	chmod +x twic2pgn
+
+scmerge: src/scmerge.o src/misc.o src/index.o src/date.o src/namebase.o \
+          src/gfile.o src/bytebuf.o src/textbuf.o src/myassert.o \
+          src/stralloc.o src/position.o $(CHARSETCONVOBJS)
+	$(LINK) $(LDFLAGS) -o scmerge src/scmerge.o $(OBJS) $(CHARSETCONVOBJS) $(ZLIB) $(TCL_LIBRARY)
+
+pgnscid: src/pgnscid.o $(OBJS) $(CHARSETCONVOBJS)
+	$(LINK) $(LDFLAGS) -o pgnscid src/pgnscid.o $(OBJS) $(CHARSETCONVOBJS) $(ZLIB) $(TCL_LIBRARY)
+
+scidlet: src/scidlet.o src/engine.o src/recog.o src/misc.o src/position.o \
+          src/dstring.o src/movelist.o src/myassert.o
+	$(LINK) $(LDFLAGS) -o scidlet src/scidlet.o src/engine.o src/recog.o src/misc.o src/position.o src/movelist.o src/dstring.o src/myassert.o $(TCL_LIBRARY)
+
+scidt: src/scidt.o $(OBJS) $(CHARSETCONVOBJS)
+	$(LINK) $(LDFLAGS) -o scidt src/scidt.o $(OBJS) $(CHARSETCONVOBJS) $(ZLIB) $(TCL_LIBRARY)
+
+tkscid: src/tkscid.o $(OBJS) $(CHARSETCONVOBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o \
+          src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o
+	$(LINK) $(LDFLAGS) -o tkscid src/tkscid.o $(OBJS) $(CHARSETCONVOBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(ZLIB) $(TK_LIBRARY)
+
+tcscid: src/tcscid.o $(OBJS) $(CHARSETCONVOBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o \
+          src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o
+	$(LINK) $(LDFLAGS) -o tcscid src/tcscid.o $(OBJS) $(CHARSETCONVOBJS) src/tree.o src/filter.o src/pbook.o src/crosstab.o src/spellchk.o src/probe.o src/optable.o src/engine.o src/recog.o $(ZLIB) $(TCL_LIBRARY)
+
+# eco2epd is now optional extra program NOT compiled by default, since
+# scid now reads the .eco file format directly.
+eco2epd: src/eco2epd.o $(OBJS) src/pbook.o $(CHARSETCONVOBJS)
+	$(LINK) $(LDFLAGS) -o eco2epd src/eco2epd.o $(OBJS) src/pbook.o $(ZLIB) $(CHARSETCONVOBJS) $(TCL_LIBRARY)
+
+### Rules to create .o files from .cpp files:
+
+src/tcscid.o: src/tkscid.cpp
+	$(BASH_ENV) $(CXX) $(CXXFLAGS) $(TCL_INCLUDE) -DTCL_ONLY -o src/tcscid.o -c src/tkscid.cpp
+
+src/tkscid.o: src/tkscid.cpp
+	$(BASH_ENV) $(CXX) $(CXXFLAGS) $(TCL_INCLUDE) -o src/tkscid.o -c src/tkscid.cpp
+
+### The endgame tablebase code in the egtb/ subdirectory (not written by me)
+
+src/probe.o: src/probe.cpp src/egtb/tbindex.cpp src/egtb/tbdecode.c
+	$(CXX) $(CXXFLAGS) -Wno-missing-braces $(TB) -o src/probe.o -c src/probe.cpp
+
+### Generic rule for all other .cpp files:
+
+%.o: %.cpp
+	$(BASH_ENV) $(CXX) $(CXXFLAGS) $(TCL_INCLUDE) -o $@ -c $<
+
+### Rule for compiling zlib source files:
+
+src/zlib/%.o: src/zlib/%.c
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+### End of Makefile

@@ -1,0 +1,388 @@
+Index: src/mfile.h
+===================================================================
+--- src/mfile.h	(revision 1823)
++++ src/mfile.h	(working copy)
+@@ -19,7 +19,16 @@
+ // and will hopefully in future also be able to extract the contents of
+ // all files in a Zip file, as if they were in one large plain file.
+ 
++// -------------------------------------------------------------------
++// Extension by Gregor Cramer, 25 March 2014:
++// -------------------------------------------------------------------
++// For reading a whole file and avoiding the time consuming locking we
++// are using memory mapping (file mapping) under Windows.
++//
++// On Linux we have a simpler method, glibc is providing the function
++// getc_unlocked() for this purpose.
+ 
++
+ #ifndef SCID_MFILE_H
+ #define SCID_MFILE_H
+ 
+@@ -27,8 +36,15 @@
+ #include "dstring.h"
+ #include "error.h"
+ 
++#ifdef WIN32
++# include "win_mmap.h"
++#endif
++
+ enum mfileT {
+-    MFILE_REGULAR = 0, MFILE_MEMORY, MFILE_GZIP, MFILE_ZIP
++    MFILE_REGULAR = 0, MFILE_MEMORY, MFILE_GZIP, MFILE_ZIP,
++#ifdef WIN32
++    MFILE_MMAP,
++#endif
+ };
+ 
+ class MFile
+@@ -55,6 +71,10 @@
+ 
+     char *      FileBuffer;  // Only for files with unusual buffer size.
+ 
++#ifdef WIN32
++    WinMMap *   MappedFile;  // File mapping for fast read access.
++#endif
++
+     void  Extend();
+     int   FillGzBuffer();
+ 
+@@ -65,6 +85,9 @@
+         if (Data != NULL) { delete[] Data; }
+         if (FileBuffer != NULL) { delete[] FileBuffer; }
+         if (FileName != NULL) { delete[] FileName; }
++#ifdef WIN32
++        delete MappedFile;
++#endif
+     }
+ 
+     void Init();
+@@ -73,6 +96,9 @@
+ 
+     errorT Create (const char * name, fileModeT fmode);
+     errorT Open  (const char * name, fileModeT fmode);
++#ifdef WIN32
++    errorT OpenMappedFile (const char * name, fileModeT fmode);
++#endif
+     void   CreateMemory () { Close(); Init(); }
+     errorT Close ();
+ 
+@@ -122,6 +148,10 @@
+     case MFILE_GZIP:
+         if (GzBuffer_Avail > 0) { return 0; }
+         return gzeof(GzHandle);
++#ifdef WIN32
++    case MFILE_MMAP:
++        return Location >= MappedFile->size();
++#endif
+     default:
+         return false;
+     }
+@@ -155,8 +185,8 @@
+         CurrentPtr++;
+         return (int) value;
+     }
+-    Location++;
+     if (Type == MFILE_GZIP) {
++        Location++;
+         if (GzBuffer_Avail <= 0) {
+             return FillGzBuffer();
+         }
+@@ -165,11 +195,22 @@
+         GzBuffer_Current++;
+         return retval;
+     }
+-    #ifdef __GNUC__
++#ifdef WIN32
++    if (Type == MFILE_MMAP) {
++        if (Location >= MappedFile->size()) { return EOF; }
++        return *(MappedFile->address() + Location++);
++    } else {
++        Location++;
++        return getc(Handle);
++    }
++#else
++    Location++;
++# ifdef __GNUC__
+     return getc_unlocked(Handle);
+-    #else
++# else
+     return getc(Handle);
+-    #endif
++# endif
++#endif
+ }
+ 
+ #endif  // SCID_MFILE_H
+Index: src/index.h
+===================================================================
+--- src/index.h	(revision 1823)
++++ src/index.h	(working copy)
+@@ -639,7 +639,6 @@
+     uint         IndexEntrySize;
+ 
+     // Used for sorting:
+-    uint *        EntriesHeap;
+     int           SortCriteria [INDEX_MaxSortCriteria];
+ 
+     void         FreeEntries();
+@@ -651,6 +650,7 @@
+     //  Index:  Public Functions
+     //----------------------------------
+  public:
++    uint *        EntriesHeap;
+ #ifdef WINCE
+   void* operator new(size_t sz) {
+     void* m = my_Tcl_AttemptAlloc(sz);
+@@ -765,6 +765,11 @@
+      errorT     WriteSorted () { return WriteSorted (0, NULL, NULL); }
+ 
+      errorT     ParseSortCriteria (const char * inputStr);
++
++#ifdef WIN32 // Fast file read
++    class WinFileMapping;
++    friend class WinFileMapping;
++#endif
+ };
+ 
+ 
+Index: src/index.cpp
+===================================================================
+--- src/index.cpp	(revision 1823)
++++ src/index.cpp	(working copy)
+@@ -53,7 +53,36 @@
+     SORT_deleted, SORT_eventdate, SORT_variations, SORT_comments, SORT_random, SORT_sentinel
+ };
+ 
++#ifdef WIN32 // Fast file read
+ 
++struct Index::WinFileMapping {
++    Index& index;
++    MFile* fp;
++	 uint pos;
++
++    WinFileMapping(Index& i, char const* fname) :index(i), fp(i.FilePtr), pos(i.FilePos) {
++        index.FilePtr = new MFile;
++
++        if (index.FilePtr->OpenMappedFile(fname, FMODE_ReadOnly) != OK) {
++            delete index.FilePtr;
++            index.FilePtr = fp; // use original handle in case of an error
++        } else {
++            index.FilePos = 0;
++        }
++    }
++
++    ~WinFileMapping()
++    {
++        if (index.FilePtr != fp) {
++            delete index.FilePtr;
++            index.FilePtr = fp;
++            index.FilePos = pos;
++        }
++    }
++};
++
++#endif
++
+ //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ // IndexEntry::Init():
+ //        Initialise a single index entry.
+@@ -1131,7 +1160,17 @@
+         if (gamesToRead > INDEX_ENTRY_CHUNKSIZE) {
+             gamesToRead = INDEX_ENTRY_CHUNKSIZE;
+         }
++
++#ifdef WIN32 // Fast file read
++        { Index::WinFileMapping fileMapping(*this, FilePtr->GetFileName());
++#endif
++
+         err = ReadEntries (Entries[chunkCount], readCount, gamesToRead);
++
++#ifdef WIN32 // Fast file read
++        }
++#endif
++
+         if (err != OK) {
+             for (uint i = 0; i <= chunkCount; i++) {
+                 delete[] Entries[i];
+Index: src/mfile.cpp
+===================================================================
+--- src/mfile.cpp	(revision 1823)
++++ src/mfile.cpp	(working copy)
+@@ -33,6 +33,9 @@
+     CurrentPtr = NULL;
+     FileBuffer = NULL;
+     FileName = NULL;
++#ifdef WIN32
++    MappedFile = NULL;
++#endif
+ }
+ 
+ void
+@@ -49,7 +52,7 @@
+     if (oldData != NULL) {
+       // Copy data to new array:
+       for (uint i=0; i < oldCapacity; i++) {
+-	Data[i] = oldData[i];
++        Data[i] = oldData[i];
+       }
+       delete[] oldData;
+     }
+@@ -84,6 +87,10 @@
+     if (Type == MFILE_GZIP) {
+         result = gzseek (GzHandle, position, 0);
+         GzBuffer_Avail = 0;
++#ifdef WIN32
++    } else if (Type == MFILE_MMAP) {
++        result = 0; // always succeeding
++#endif
+     } else {
+         result = fseek (Handle, position, 0);
+     }
+@@ -137,7 +144,24 @@
+     return OK;
+ }
+ 
++#ifdef WIN32
+ errorT
++MFile::OpenMappedFile (const char * name, fileModeT fmode)
++{
++    ASSERT(Handle == NULL && GzHandle == NULL);
++    ASSERT(fmode == FMODE_ReadOnly);
++
++    Type = MFILE_MMAP;
++    FileName = strDuplicate(name);
++    MappedFile = new WinMMap(name);
++    FileMode = fmode;
++    Location = 0;
++
++    return MappedFile->isOpen() ? OK : ERROR_FileOpen;
++}
++#endif
++
++errorT
+ MFile::Create (const char * name, fileModeT fmode)
+ {
+     ASSERT (Handle == NULL  &&  GzHandle == NULL);
+@@ -172,6 +196,11 @@
+             GzBuffer_Avail = 0;
+         }
+         result = gzclose (GzHandle);
++#ifdef WIN32
++    } else if (Type == MFILE_MMAP) {
++        delete MappedFile;
++        MappedFile = NULL;
++#endif
+     } else {
+         result = fclose (Handle);
+     }
+--- /dev/null	2014-03-02 18:27:46.141000001 +1000
++++ src/win_mmap.h	2014-03-26 07:23:35.000000000 +1000
+@@ -0,0 +1,107 @@
++//////////////////////////////////////////////////////////////////////
++//
++//  FILE:       win_mmap.h
++//              Fast file read access for Windows.
++//
++//  Part of:    Scid (Shane's Chess Information Database)
++//  Version:    2.0
++//
++//  Notice:     Copyright (c) 2014  Gregor Cramer.
++//
++//  Author:     Gregor Cramer
++//
++//////////////////////////////////////////////////////////////////////
++
++//////////////////////////////////////////////////////////////////////
++//
++// Only useful for fast sequential read of a whole file.
++//
++// This class is for Windows only.
++//
++//////////////////////////////////////////////////////////////////////
++
++#ifndef SCID_WIN_MMAP_H
++#define SCID_WIN_MMAP_H
++
++#include <windows.h>
++
++class WinMMap
++{
++public:
++
++    WinMMap(char const* filename);
++    ~WinMMap();
++
++    bool isOpen() const { return m_address != NULL; }
++
++    unsigned size() const { return m_size; }
++
++    unsigned char const* address() const { return static_cast<unsigned char const*>(m_address); }
++
++private:
++
++    void*     m_address;
++    unsigned  m_size;
++    HANDLE    m_file;
++    HANDLE    m_mapping;
++};
++
++
++inline
++WinMMap::WinMMap(char const* filename)
++    :m_address(0)
++    ,m_size(0)
++    ,m_file(INVALID_HANDLE_VALUE)
++    ,m_mapping(INVALID_HANDLE_VALUE)
++{
++    ASSERT (filename != NULL);
++
++    m_file = CreateFileA(
++					filename,
++					GENERIC_READ,
++					0,
++					0,
++					OPEN_EXISTING,
++					FILE_FLAG_SEQUENTIAL_SCAN | FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_TEMPORARY,
++					0);
++
++    if (m_file == INVALID_HANDLE_VALUE)
++        return;
++
++    m_mapping = CreateFileMappingA(
++						 m_file,
++						 0,
++						 PAGE_READONLY,
++						 0,
++						 0,
++						 filename);
++
++    if (m_mapping == INVALID_HANDLE_VALUE)
++    {
++        CloseHandle(m_file);
++        return;
++    }
++
++    m_address = MapViewOfFile(m_mapping, FILE_MAP_READ, 0, 0, 0);
++    m_size = GetFileSize(m_file, 0);
++}
++
++
++inline
++WinMMap::~WinMMap()
++{
++    if (m_address)
++        UnmapViewOfFile(m_address);
++
++    if (m_mapping != INVALID_HANDLE_VALUE)
++        CloseHandle(m_mapping);
++
++    if (m_file != INVALID_HANDLE_VALUE)
++        CloseHandle(m_file);
++}
++
++#endif  // SCID_WIN_MMAP_H
++
++//////////////////////////////////////////////////////////////////////
++//  End of file: win_mmap.h
++//////////////////////////////////////////////////////////////////////

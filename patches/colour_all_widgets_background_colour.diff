@@ -1,0 +1,33 @@
+Index: tcl/board.tcl
+===================================================================
+--- tcl/board.tcl	(revision 1931)
++++ tcl/board.tcl	(working copy)
+@@ -49,13 +49,10 @@
+ }
+ 
+ proc recurseBackgroundColour {w colour} {
+-     if {[winfo class $w] == "Text" || [winfo class $w] == "Listbox"} {
+-         $w configure -background $colour
+-     } else {
++       catch {$w configure -background $colour}
+        foreach c [winfo children $w] {
+ 	   recurseBackgroundColour $c $colour
+        }
+-     }
+ }
+ 
+ proc SetBoardTextures {} {
+Index: tcl/start.tcl
+===================================================================
+--- tcl/start.tcl	(revision 1931)
++++ tcl/start.tcl	(working copy)
+@@ -1476,8 +1476,7 @@
+ }
+ 
+ if {$enableBackground} {
+-  option add *Text*background $defaultBackground
+-  option add *Listbox*background $defaultBackground
++  option add *background $defaultBackground
+ }
+ 
+ # Reconfigure fonts if necessary

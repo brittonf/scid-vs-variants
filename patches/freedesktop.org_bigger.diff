@@ -1,0 +1,728 @@
+Author Gregor Cramer
+
+Index: Makefile.conf
+===================================================================
+--- Makefile.conf	(revision 1556)
++++ Makefile.conf	(working copy)
+@@ -187,7 +187,7 @@
+ ### To copy all executables to $BINDIR, with read and execute permission 
+ #   for all users, and put extra files in $SHAREDIR, type "make install".
+ 
+-install: install_scid install_engines
++install: install_scid install_engines install-xdg
+ 
+ install_scid: all_scid
+ 	install -m 755 -d $(SHAREDIR)
+@@ -241,7 +241,9 @@
+ 	install -m 755 scid $(BINDIR)
+ 	scid
+ 
+-uninstall:
++uninstall: uninstall_all uninstall-xdg
++
++uninstall_all:
+ 	rm -rf $(SHAREDIR)/engines
+ 	rm -rf $(SHAREDIR)/books
+ 	rm -rf $(SHAREDIR)/bases
+@@ -279,6 +281,26 @@
+ 		fi; \
+ 	fi
+ 
++install-xdg:
++	@if [ -n "$(shell xdg-icon-resource --version 2>/dev/null)" ]; then \
++		if [ -n "$(shell xdg-mime --version 2>/dev/null)" ]; then        \
++			$(MAKE) -C freedesktop.org install-mime;                      \
++		fi;                                                              \
++	fi
++	@if [ -n "$(shell xdg-desktop-menu --version 2>/dev/null)" ]; then  \
++		$(MAKE) -C freedesktop.org install-desktop-menu;                 \
++	fi
++
++uninstall-xdg:
++	@if [ -n "$(shell xdg-icon-resource --version 2>/dev/null)" ]; then \
++		if [ -n "$(shell xdg-mime --version 2>/dev/null)" ]; then        \
++			$(MAKE) -C freedesktop.org uninstall-mime;                    \
++		fi;                                                              \
++	fi
++	@if [ -n "$(shell xdg-desktop-menu --version 2>/dev/null)" ]; then  \
++		$(MAKE) -C freedesktop.org uninstall-desktop-menu;               \
++	fi
++
+ ### To remove Scid files placed in the BINDIR and SHAREDIR directories,
+ #   type "make distclean".
+ 
+Index: tcl/file.tcl
+===================================================================
+--- tcl/file.tcl	(revision 1556)
++++ tcl/file.tcl	(working copy)
+@@ -726,7 +726,7 @@
+     } else {
+       append message \n\n [join $rejectList \n]
+     }
+-    set detail [tr UriRejectedDetail]
++    set detail [tr UriRejectedDetail]
+     append detail " .sci, .si4, .si3, .cbh, .pgn, .pgn.gz, .zip"
+     tk_messageBox -icon info -type ok -parent . -message $message -detail $detail
+   }
+@@ -738,6 +738,130 @@
+ }
+ 
+ 
++if {[tk windowingsystem] eq "x11" && [string length [auto_execok xdg-mime]]} {
++
++  proc ::file::assignTypes {} {
++    variable Action_
++    variable Assign_
++
++    set parent .
++    set xdgmime [auto_execok xdg-mime]
++
++    foreach filetype {scid4 pgn gzpgn epd gzepd} {
++      set cmd [list $xdgmime query default application/x-chess-$filetype]
++      set dfltApp ""
++      catch { set dfltApp [exec {*}$cmd] }
++      set default($filetype) 0
++      set Assign_($filetype) 0
++      if {[string match scidvspc.* $dfltApp]} { set default($filetype) 1 }
++    }
++
++    set Action_ cancel
++    set dlg [toplevel .setDefaultApp]
++
++    pack [set top [frame $dlg.top]] -fill both
++    set last -1
++    set count 0
++    set row 1
++
++    foreach {filetype extensions lbl} {
++        scid4 {.si4} ScidBases
++        pgn {.pgn} PGNFiles
++        gzpgn {.pgn.gz} PGNFilesCompressed
++        epd {.epd} EPDFiles
++        gzepd {.epd.gz} EPDFilesCompressed} {
++      label $top.${filetype} -text [tr $lbl]
++      label $top.${filetype}Descr -text "($extensions)"
++      grid $top.$filetype -row $row -column 1 -sticky w
++      grid $top.${filetype}Descr -row $row -column 3 -sticky w
++      if {!$default($filetype)} {
++        checkbutton $top.${filetype}Assign \
++          -text [tr Assign] \
++          -variable [namespace current]::Assign_($filetype) \
++          ;
++        grid $top.${filetype}Assign -row $row -column 5 -sticky w
++        incr count
++      }
++      grid rowconfigure $top [incr row] -minsize 5
++      incr row
++    }
++
++    grid rowconfigure $top 0 -minsize 5
++    grid columnconfigure $top {0 2 4} -minsize 5
++    if {$count > 0} { grid columnconfigure $top 6 -minsize 5 }
++
++    pack [frame $dlg.b] -side bottom -pady 3
++    if {$count == 0} {
++      dialogbutton $dlg.b.close -text [tr Close] \
++        -command [list set [namespace current]::Action_ close]
++      pack $dlg.b.close -side right -padx 10 -pady 2
++    } else {
++      dialogbutton $dlg.b.ok -text OK \
++        -command [list set [namespace current]::Action_ ok]
++      dialogbutton $dlg.b.cancel -text [tr Cancel] \
++        -command [list set [namespace current]::Action_ cancel]
++      pack $dlg.b.ok $dlg.b.cancel -side right -padx 10 -pady 2
++    }
++	 pack [ttk::separator $dlg.sep] -side bottom -pady 3 -fill both
++
++    wm withdraw $dlg
++    wm protocol $dlg WM_DELETE_WINDOW [list set [namespace current]::Action_ cancel]
++    wm transient $dlg [winfo toplevel $parent]
++    wm title $dlg [string map {& {} ... {}} [tr OptionsAssignFileTypes]]
++    wm resizable $dlg false false
++    placeWinOverParent $dlg .
++    wm state $dlg normal
++    focus $top
++    ::ttk::grabWindow $dlg
++    tkwait variable [namespace current]::Action_
++    ::ttk::releaseGrab $dlg
++
++    set mimetypes {}
++    if {$Action_ eq "ok"} {
++      foreach filetype {scid4 pgn gzpgn epd gzepd} {
++        if {!$default($filetype) && $Assign_($filetype)} {
++          lappend mimetypes application/x-chess-$filetype
++        }
++      }
++    }
++
++    if {[llength $mimetypes]} {
++      busyCursor $dlg
++      set xdgcmd [list $xdgmime default scidvspc.desktop {*}[join $mimetypes " "]]
++      # Unluckely the pipe is swallowing any error, but we have to use pipe 'yes'
++      # because xdg-mime may ask if some files should be set writeable.
++      catch { exec yes | {*}$xdgcmd }
++      set failed {}
++      set success {}
++      foreach mimetype $mimetypes {
++        set cmd [list $xdgmime query default $mimetype]
++        set dfltApp ""
++        catch { set dfltApp [exec {*}$cmd] }
++        if {[string match scidvspc.* $dfltApp]} {
++          lappend success $mimetype
++        } else {
++          lappend failed $mimetype
++        }
++      }
++      if {[llength $failed]} {
++        set failed [join $failed ", "]
++        set msg [format [tr FailedSettingDefaultApp] $failed]
++        append detail [format [tr CommandFailed] $xdgcmd]
++        tk_messageBox -icon error -type ok -parent $dlg -message $msg
++      }
++      if {[llength $success]} {
++        set success [join $success ", "]
++        set msg [format [tr SuccessSettingDefaultApp] $success]
++        tk_messageBox -icon info -type ok -parent $dlg -message $msg
++      }
++      unbusyCursor $dlg
++    }
++
++    destroy $dlg
++  }
++}
++
++
+ proc bgerror {err} {
+   if {$err eq "selection owner didn't respond"} {
+     set parent [::tkdnd::get_drop_target]
+Index: tcl/menus.tcl
+===================================================================
+--- tcl/menus.tcl	(revision 1556)
++++ tcl/menus.tcl	(working copy)
+@@ -849,6 +849,11 @@
+ $m add command -label OptionsRecent -command ::recentFiles::configure
+ set helpMessage($m,[incr menuindex]) OptionsRecent
+ 
++if {[llength [info procs ::file::assignTypes]]} {
++  $m add command -label OptionsAssignFileTypes -command ::file::assignTypes
++  set helpMessage($m,[incr menuindex]) OptionsAssignFileTypes
++}
++
+ $m add separator
+ incr menuindex
+ 
+@@ -1610,7 +1615,7 @@
+   foreach tag {ToolsExpFilterPGN ToolsExpFilterHTML ToolsExpFilterHTMLJS ToolsExpFilterLaTeX} {
+     configMenuText .menu.tools.exportfilter [tr $tag $oldLang] $tag $lang
+   }
+-  foreach tag {Board Colour Toolbar Names Recent Fonts GInfo Fics Moves Startup Language
++  foreach tag {Board Colour Toolbar Names Recent AssignFileTypes Fonts GInfo Fics Moves Startup Language
+     Numbers Windows Theme Export ECO Spell Table BooksDir TacticsBasesDir Sounds Save AutoSave} {
+     configMenuText .menu.options [tr Options$tag $oldLang] Options$tag $lang
+   }
+Index: tcl/lang/nederlan.tcl
+===================================================================
+--- tcl/lang/nederlan.tcl	(revision 1556)
++++ tcl/lang/nederlan.tcl	(working copy)
+@@ -317,6 +317,10 @@
+ menuText N OptionsAutoSave "Automatisch bewaren opties tijdens afsluiten" 1 \
+   {Automatisch bewaren alle gewijzigde opties bij het afsluiten van ScidVsPC}
+ 
++# ====== TODO To be translated ======
++menuText N OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
++ 
+ # Help menu:
+ menuText N Help "Help" 0
+ menuText N HelpContents "Inhoud" 0 {Toon de help inhoudspagina} ;
+@@ -1659,6 +1663,27 @@
+ translate N UriRejectedDetail {Alleen de vermelde bestandstypes kunnen worden verwerkt:}
+ translate N EmptyUriList {Geplakte inhoud is leeg.}
+ translate N SelectionOwnerDidntRespond {Time-out tijdens plakken data: geen reactie van geselecteerde eigenaar.}
++
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate N Assign {assign}
++# ====== TODO To be translated ======
++translate N ScidBases {Scid databases}
++# ====== TODO To be translated ======
++translate N PGNFiles {PGN files}
++# ====== TODO To be translated ======
++translate N PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate N EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate N EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate N ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate N FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate N SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ # End of nederlan.tcl
+ 
+Index: tcl/lang/english.tcl
+===================================================================
+--- tcl/lang/english.tcl	(revision 1556)
++++ tcl/lang/english.tcl	(working copy)
+@@ -326,6 +326,7 @@
+ menuText E OptionsTable "Tablebase Directory" 10 \
+   {Select a tablebase file; all tablebases in its directory will be used}
+ menuText E OptionsRecent "Recent Entries" 0 {Change the number of entries shown in the File/Game-History menus}
++menuText E OptionsAssignFileTypes "Assign File Types" 13 {Set Scid vs. PC as default application}
+ menuText E OptionsBooksDir "Books Directory" 0 {Sets the opening books directory}
+ menuText E OptionsTacticsBasesDir "Bases Directory" 0 {Sets the tactics (training) bases directory}
+ menuText E OptionsSave "Save Options" 0 "Save all settable options to the file $::optionsFile"
+@@ -1658,5 +1659,16 @@
+ translate E EmptyUriList {Drop content is empty.}
+ translate E SelectionOwnerDidntRespond {Timeout during drop action: selection owner didn't respond.}
+ 
++# Assign file types dialog
++translate E Assign {assign}
++translate E ScidBases {Scid databases}
++translate E PGNFiles {PGN files}
++translate E PGNFilesCompressed {PGN files (compressed)}
++translate E EPDFiles {EPD files}
++translate E EPDFilesCompressed {EPD files (compressed)}
++translate E ErrorWhileExecCmd {Error while executing command: '%s'.}
++translate E FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++translate E SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ # end of english.tcl
+Index: tcl/lang/czech.tcl
+===================================================================
+--- tcl/lang/czech.tcl	(revision 1556)
++++ tcl/lang/czech.tcl	(working copy)
+@@ -325,6 +325,9 @@
+ menuText C OptionsRecent "Nedávné soubory..." 0 \
+   {Zmìnit poèet nedávných souborù zobrazovaných v menu Soubor}
+ # ====== TODO To be translated ======
++menuText C OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
++# ====== TODO To be translated ======
+ menuText C OptionsBooksDir "Books directory..." 0 {Sets the opening books directory}
+ # ====== TODO To be translated ======
+ menuText C OptionsTacticsBasesDir "Bases directory..." 0 {Sets the tactics (training) bases directory}
+@@ -1917,6 +1920,26 @@
+ # ====== TODO To be translated ======
+ translate C SelectionOwnerDidntRespond {Timeout during drop action: selection owner didn't respond.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate C Assign {assign}
++# ====== TODO To be translated ======
++translate C ScidBases {Scid databases}
++# ====== TODO To be translated ======
++translate C PGNFiles {PGN files}
++# ====== TODO To be translated ======
++translate C PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate C EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate C EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate C ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate C FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate C SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ 
+ 
+Index: tcl/lang/norsk.tcl
+===================================================================
+--- tcl/lang/norsk.tcl	(revision 1556)
++++ tcl/lang/norsk.tcl	(working copy)
+@@ -354,6 +354,9 @@
+ menuText O OptionsRecent "Recent files..." 0 \
+   {Change the number of recent files displayed in the File menu} ;# ***
+ # ====== TODO To be translated ======
++menuText O OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
++# ====== TODO To be translated ======
+ menuText O OptionsBooksDir "Books directory..." 0 {Sets the opening books directory}
+ # ====== TODO To be translated ======
+ menuText O OptionsTacticsBasesDir "Bases directory..." 0 {Sets the tactics (training) bases directory}
+@@ -2061,6 +2064,26 @@
+ # ====== TODO To be translated ======
+ translate O SelectionOwnerDidntRespond {Timeout during drop action: selection owner didn't respond.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate O Assign {assign}
++# ====== TODO To be translated ======
++translate O ScidBases {Scid databases}
++# ====== TODO To be translated ======
++translate O PGNFiles {PGN files}
++# ====== TODO To be translated ======
++translate O PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate O EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate O EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate O ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate O FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate O SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ 
+ # norsk.tcl
+Index: tcl/lang/polish.tcl
+===================================================================
+--- tcl/lang/polish.tcl	(revision 1556)
++++ tcl/lang/polish.tcl	(working copy)
+@@ -308,6 +308,9 @@
+   {Wybierz bazê koñcówek; u¿yte zostan± wszystkie bazy z tego katalogu}
+ menuText P OptionsRecent "Ostatnie pliki..." 0 \
+   {Zmieñ liczbê ostatnio otwartych plików, wy¶wietlanych w menu Plik} 
++# ====== TODO To be translated ======
++menuText P OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
+ 
+ menuText P OptionsBooksDir "Katalog ksi±¿ek debiutowych..." 0 {Ustaw katalog ksi±¿ek debiutowych}
+ menuText P OptionsTacticsBasesDir "Katalog baz..." 0 {Ustaw katalog baz treningowych}
+@@ -1647,6 +1650,26 @@
+ # ====== TODO To be translated ======
+ translate P SelectionOwnerDidntRespond {Timeout during drop action: selection owner didn't respond.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate P Assign {assign}
++# ====== TODO To be translated ======
++translate P ScidBases {Scid databases}
++# ====== TODO To be translated ======
++translate P PGNFiles {PGN files}
++# ====== TODO To be translated ======
++translate P PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate P EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate P EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate P ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate P FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate P SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ 
+ ### Tips of the day in Polish:
+Index: tcl/lang/deutsch.tcl
+===================================================================
+--- tcl/lang/deutsch.tcl	(revision 1556)
++++ tcl/lang/deutsch.tcl	(working copy)
+@@ -321,6 +321,8 @@
+   {Eine Endspieltabellendatei wählen (und damit alle Tabellen in diesem Verzeichnis)}
+ menuText D OptionsRecent "Aktuelle Dateien..." 9 \
+   {Anzahl der aktuellen Dateien im Dateimenü ändern}
++menuText D OptionsAssignFileTypes "Dateitypen zuordnen" 6 \
++  {Scid vs. PC als Standardapplikation bestimmen}
+ menuText D OptionsBooksDir "Buchverzeichnis..." 0 {Eröffnungsbuchverzeichnis einstellen}
+ menuText D OptionsTacticsBasesDir "Bases Verzeichnis..." 0 {Verzeichnis für taktische Trainingsdatenbanken einstellen}
+ menuText D OptionsSave "Optionen speichern" 0 \
+@@ -1669,6 +1671,17 @@
+ translate D EmptyUriList {Der Drop-Inhalt ist leer.}
+ translate D SelectionOwnerDidntRespond {Zeitüberschreitung während der Drop-Aktion: der Eigentümer des Drop-Inhalts antwortete nicht.}
+ 
++# Assign file types dialog
++translate D Assign {zuordnen}
++translate D ScidBases {Scid-Datenbanken}
++translate D PGNFiles {PGN-Dateien}
++translate D PGNFilesCompressed {PGN-Dateien (komprimiert)}
++translate D EPDFiles {EPD-Dateien}
++translate D EPDFilesCompressed {EPD-Dateien (komprimiert)}
++translate D ErrorWhileExecCmd {Fehler beim Asuführen des Befehls '%s'.}
++translate D FailedSettingDefaultApp {Scid vs. PC als Standardapplikation für %s zu bestimmen schlug fehl.}
++translate D SuccessSettingDefaultApp {Scid vs. PC wurde erfolgreich als Standardapplikation für %s bestimmt.}
++
+ }
+ 
+ ##########
+Index: tcl/lang/spanish.tcl
+===================================================================
+--- tcl/lang/spanish.tcl	(revision 1556)
++++ tcl/lang/spanish.tcl	(working copy)
+@@ -321,6 +321,9 @@
+   {Selecciona el directorio de finales; todas las TB de ese directorio serán usadas}
+ menuText S OptionsRecent "Archivos Recientes" 0 \
+   {Cambia el número de archivos recientes mostrados en el menú Archivo}
++# ====== TODO To be translated ======
++menuText S OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
+ menuText S OptionsBooksDir "Carpeta de Libros de Aperturas (Books)" 0 {Fija la carpeta de los libros de aperturas (Books)}
+ menuText S OptionsTacticsBasesDir "Carpeta de Bases" 0 {Fija la carpeta de la base de entrenamiento táctico}
+ menuText S OptionsSave "Guardar opciones" 0 \
+@@ -1662,6 +1665,24 @@
+ translate S EmptyUriList {Descartar contenido está vacóo.}
+ translate S SelectionOwnerDidntRespond {Tiempo excedido durante la operación: el propietario de la selección no respondió.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate S Assign {assign}
++translate S ScidBases {Bases Scid}
++translate S PGNFiles {Archivos PGN}
++# ====== TODO To be translated ======
++translate S PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate S EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate S EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate S ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate S FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate S SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ # end of spanish.tcl
+ 
+Index: tcl/lang/swedish.tcl
+===================================================================
+--- tcl/lang/swedish.tcl	(revision 1556)
++++ tcl/lang/swedish.tcl	(working copy)
+@@ -297,6 +297,9 @@
+   {Välj en fil som innehåller en slutspelsdatabas; alla övriga filer i samma katalog kommer att användas}
+ menuText W OptionsRecent "Senast använda filer..." 16 \
+   {Ãndra antalet senast använda filer som visas i Arkivmenyn}
++# ====== TODO To be translated ======
++menuText W OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
+ menuText W OptionsBooksDir "Öppningsbokskatalog..." 0 {Anger Öppningsbokskatalogen}
+ menuText W OptionsTacticsBasesDir "Taktikbaskatalog..." 0 {Anger Taktikbaskatalog (för träning)}
+ menuText W OptionsSave "Spara alternativ" 7 \
+@@ -1615,6 +1618,24 @@
+ # ====== TODO To be translated ======
+ translate W SelectionOwnerDidntRespond {Timeout during drop action: selection owner didn't respond.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate W Assign {assign}
++translate W ScidBases {Scid databaser}
++translate W PGNFiles {PGN filer}
++# ====== TODO To be translated ======
++translate W PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate W EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate W EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate W ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate W FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate W SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ 
+ ##########
+Index: tcl/lang/portbr.tcl
+===================================================================
+--- tcl/lang/portbr.tcl	(revision 1556)
++++ tcl/lang/portbr.tcl	(working copy)
+@@ -326,6 +326,9 @@
+ menuText B OptionsRecent "Recent files..." 0 \
+   {Change the number of recent files displayed in the File menu} ;# ***
+ # ====== TODO To be translated ======
++menuText B OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
++# ====== TODO To be translated ======
+ menuText B OptionsBooksDir "Books directory..." 0 {Sets the opening books directory}
+ # ====== TODO To be translated ======
+ menuText B OptionsTacticsBasesDir "Bases directory..." 0 {Sets the tactics (training) bases directory}
+@@ -1913,6 +1916,26 @@
+ # ====== TODO To be translated ======
+ translate B SelectionOwnerDidntRespond {Timeout during drop action: selection owner didn't respond.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate B Assign {assign}
++# ====== TODO To be translated ======
++translate B ScidBases {Scid databases}
++# ====== TODO To be translated ======
++translate B PGNFiles {PGN files}
++# ====== TODO To be translated ======
++translate B PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate B EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate B EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate B ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate B FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate B SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ 
+ # end of portbr.tcl
+Index: tcl/lang/hungary.tcl
+===================================================================
+--- tcl/lang/hungary.tcl	(revision 1556)
++++ tcl/lang/hungary.tcl	(working copy)
+@@ -329,6 +329,9 @@
+ menuText H OptionsRecent "Aktuális fájlok..." 3 \
+   {A Fájl menüben megjelenített aktuális fájlok számának megváltoztatása}
+ # ====== TODO To be translated ======
++menuText H OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
++# ====== TODO To be translated ======
+ menuText H OptionsBooksDir "Books directory..." 0 {Sets the opening books directory}
+ # ====== TODO To be translated ======
+ menuText H OptionsTacticsBasesDir "Bases directory..." 0 {Sets the tactics (training) bases directory}
+@@ -1937,6 +1940,24 @@
+ # ====== TODO To be translated ======
+ translate H SelectionOwnerDidntRespond {Timeout during drop action: selection owner didn't respond.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate H Assign {assign}
++translate H ScidBases {Scid adatbázisok}
++translate H PGNFiles {PGN fájlok}
++# ====== TODO To be translated ======
++translate H PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate H EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate H EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate H ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate H FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate H SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ 
+ # Tips of the day in Hungarian
+Index: tcl/lang/italian.tcl
+===================================================================
+--- tcl/lang/italian.tcl	(revision 1556)
++++ tcl/lang/italian.tcl	(working copy)
+@@ -316,6 +316,9 @@
+   {Seglie un file tablebase; tutte le tablebases nella directory saranno utilizzate}
+ menuText I OptionsRecent "File utilizzati di recente..." 0 \
+   {Cambia il numero di file recentemente utilizzati visualizzato nel menu file}
++# ====== TODO To be translated ======
++menuText I OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
+ menuText I OptionsBooksDir "Directory del libro delle aperture..." 0 {Configura la directory per il libro delle aperture}
+ menuText I OptionsTacticsBasesDir "Directory dei Database..." 0 {Configura la directory per i database di allenamento}
+ menuText I OptionsSave "Salva Opzioni" 0 \
+@@ -1752,6 +1755,24 @@
+ translate I EmptyUriList {Gli archivi trascinati sono vuoti.}
+ translate I SelectionOwnerDidntRespond {Tempo scaduto durante operazione di trascinamento: intestatario selezione non ha risposto.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate I Assign {assign}
++translate I ScidBases {Database Scid}
++translate I PGNFiles {File PGN}
++# ====== TODO To be translated ======
++translate I PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate I EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate I EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate I ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate I FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate I SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ 
+ ############################################################
+Index: tcl/lang/serbian.tcl
+===================================================================
+--- tcl/lang/serbian.tcl	(revision 1556)
++++ tcl/lang/serbian.tcl	(working copy)
+@@ -353,6 +353,9 @@
+ menuText Y OptionsRecent "Recent files..." 0 \
+   {Change the number of recent files displayed in the File menu} ;# ***
+ # ====== TODO To be translated ======
++menuText Y OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
++# ====== TODO To be translated ======
+ menuText Y OptionsBooksDir "Books directory..." 0 {Sets the opening books directory}
+ # ====== TODO To be translated ======
+ menuText Y OptionsTacticsBasesDir "Bases directory..." 0 {Sets the tactics (training) bases directory}
+@@ -2065,6 +2068,26 @@
+ # ====== TODO To be translated ======
+ translate Y SelectionOwnerDidntRespond {Timeout during drop action: selection owner didn't respond.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate Y Assign {assign}
++# ====== TODO To be translated ======
++translate Y ScidBases {Scid databases}
++# ====== TODO To be translated ======
++translate Y PGNFiles {PGN files}
++# ====== TODO To be translated ======
++translate Y PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate Y EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate Y EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate Y ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate Y FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate Y SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
+ }
+ # end of serbian.tcl
+ 
+Index: tcl/lang/francais.tcl
+===================================================================
+--- tcl/lang/francais.tcl	(revision 1556)
++++ tcl/lang/francais.tcl	(working copy)
+@@ -307,6 +307,9 @@
+   {Sélectionner un répertoire de fichiers TB, tous les fichiers de ce répertoire seront utilisés}
+ menuText F OptionsRecent "Fichiers récents..." 0 \
+   {Changer le nombre de fichiers récents affichés dans le menu Fichier}
++# ====== TODO To be translated ======
++menuText F OptionsAssignFileTypes "Assign File Types" 0 \
++  {Set Scid vs. PC as default application}
+ menuText F OptionsBooksDir "Répertoire des bibliothèques..." 0 {Répertoire des bibliothèques d'ouverture}
+ menuText F OptionsTacticsBasesDir "Répertoire des bases d'entrainement..." 0 {Répertoire des bases pour l'entrainement tactique}
+ menuText F OptionsSave "Sauver les options" 0 "Sauver les options dans le fichier $::optionsFile"
+@@ -1652,6 +1655,27 @@
+ # ====== TODO To be translated ======
+ translate F SelectionOwnerDidntRespond {Timeout during drop action: selection owner didn't respond.}
+ 
++# Assign file types dialog
++# ====== TODO To be translated ======
++translate F Assign {assign}
++# ====== TODO To be translated ======
++translate F ScidBases {Scid databases}
++# ====== TODO To be translated ======
++translate F PGNFiles {PGN files}
++# ====== TODO To be translated ======
++translate F PGNFilesCompressed {PGN files (compressed)}
++# ====== TODO To be translated ======
++translate F EPDFiles {EPD files}
++# ====== TODO To be translated ======
++translate F EPDFilesCompressed {EPD files (compressed)}
++# ====== TODO To be translated ======
++translate F ErrorWhileExecCmd {Error while executing command: '%s'.}
++# ====== TODO To be translated ======
++translate F FailedSettingDefaultApp {Failed to set Scid vs. PC as a default application for %s.}
++# ====== TODO To be translated ======
++translate F SuccessSettingDefaultApp {Successfully set Scid vs. PC as a default application for %s.}
++
++
+ ##########
+ #
+ # ECO Opening name translations:

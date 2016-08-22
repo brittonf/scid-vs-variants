@@ -1,0 +1,25 @@
+Index: tcl/main.tcl
+===================================================================
+--- tcl/main.tcl	(revision 2066)
++++ tcl/main.tcl	(working copy)
+@@ -337,6 +337,7 @@
+ 
+ foreach i {start back forward end intoVar exitVar addVar autoplay flip windows trial} {
+   .main.button.$i configure -relief flat -border 1 -highlightthickness 0 -takefocus 0
++  # .main.button.$i configure -relief flat -border 1 -highlightthickness 0 -takefocus 0 -height 12 -anchor s
+   # bind .main.button.$i <Any-Enter> "+.main.button.$i configure -relief groove"
+   # bind .main.button.$i <Any-Leave> "+.main.button.$i configure -relief flat; statusBarRestore %W; break"
+ }
+Index: tcl/board.tcl
+===================================================================
+--- tcl/board.tcl	(revision 2066)
++++ tcl/board.tcl	(working copy)
+@@ -1159,7 +1159,7 @@
+ MRIkyiwsUKaIHk16ChQsaHsFAgA7}
+ 
+ # Double size the toolbar buttons (disabled)
+-if {0} {
++if {1} {
+   image create photo tempimage
+   foreach i {glist pgn comment maint eco tree book crosst tmt engine
+     hsearch bsearch msearch rfilter newgame copy paste

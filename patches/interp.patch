@@ -1,0 +1,53 @@
+--- src/misc.cpp.orig	2010-11-09 06:24:40.000000000 +1000
++++ src/misc.cpp	2010-11-09 06:24:59.000000000 +1000
+@@ -20,6 +20,7 @@
+ #include <stdio.h>
+ #include <ctype.h>     // For isspace() function.
+ #include <sys/stat.h>  // Needed for fileSize() function.
++#include <tcl.h>
+ 
+ #ifdef WINCE
+ #include <tcl.h>
+@@ -30,6 +31,8 @@
+ // in scid_Init():
+ directionT sqDir[66][66];
+ 
++// Keep track of current TCL interpreter for Tcl calls (like Tcl_Eval)
++Tcl_Interp * currentTclInterp;
+ 
+ //////////////////////////////////////////////////////////////////////
+ //   Scid Initialisation Routine
+--- src/misc.h.orig	2010-11-09 06:24:48.000000000 +1000
++++ src/misc.h	2010-11-09 06:24:59.000000000 +1000
+@@ -19,6 +19,12 @@
+ #include "common.h"
+ #include "error.h"
+ #include <ctype.h>   // For isspace(), etc
++#include <tcl.h>
++
++#ifndef _CURRENT_TCL_INTERP_
++extern Tcl_Interp * currentTclInterp;
++#define _CURRENT_TCL_INTERP_
++#endif
+ 
+ 
+ // Scid initialisation routine: this MUST be called before such things as
+--- src.orig/tkscid.cpp	2010-05-29 20:38:39.000000000 +1000
++++ src/tkscid.cpp	2010-06-16 21:52:02.000000000 +1000
+@@ -430,7 +430,7 @@
+   //lowPrio(253);
+ // ==============================================================
+     int code;
+-    currentTclInterp = ti;
++//  currentTclInterp = ti;
+     if (Tcl_InitStubs(ti, TCL_VERSION, 0) == NULL) {
+       return TCL_ERROR;
+     }
+@@ -458,6 +458,7 @@
+  Tcl_CreateCommand ((ip), (name), (Tcl_CmdProc *)(cmd), \
+  (ClientData) NULL, (Tcl_CmdDeleteProc *) NULL)
+ 
++    currentTclInterp = ti;
+ 
+     ////////////////////
+     /// Scid-specific Tcl/Tk commands:
