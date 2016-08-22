@@ -473,7 +473,8 @@ game_parseNag (const char * str)
 void
 Game::SaveState ()
 {
-    if (!SavedPos) { SavedPos = new Position; }
+    if (!SavedPos) { SavedPos = new Position(this); }
+    CurrentPos->SetOwner(this); // just in case?
     SavedPos->CopyFrom (CurrentPos);
     SavedMove = CurrentMove;
     SavedPlyCount = CurrentPlyCount;
@@ -490,6 +491,7 @@ Game::RestoreState ()
     if (SavedMove) {
         ASSERT (SavedPos != NULL);
         CurrentPos->CopyFrom (SavedPos);
+        CurrentPos->SetOwner(this);
         CurrentMove = SavedMove;
         CurrentPlyCount = SavedPlyCount;
         VarDepth = SavedVarDepth;
@@ -591,9 +593,9 @@ Game::Init()
     StartPos = NULL;
 #ifdef WINCE
     if (!LowMem)
-      CurrentPos = new Position;
+      CurrentPos = new Position(this);
 #else
-    CurrentPos = new Position;
+    CurrentPos = new Position(this);
 #endif
     KeepDecodedMoves = true;
     SavedPos = NULL;
@@ -700,6 +702,10 @@ Game::ClearMoves ()
 
     // Set up standard start
     CurrentPos->StdStart();
+    CurrentPos->SetOwner(this);
+    if ( ! StartPos ) { StartPos = new Position; }
+    StartPos->CopyFrom( CurrentPos );
+
     KeepDecodedMoves = true;
 }
 
@@ -774,8 +780,12 @@ Game::SetStartPos (Position * pos)
     }
     VarDepth = 0;
     if (!StartPos) { StartPos = new Position; }
+
+    pos->SetOwner(this);
+    
     StartPos->CopyFrom (pos);
     CurrentPos->CopyFrom (pos);
+    //
     // Now make the material signature:
     FinalMatSig = matsig_Make (StartPos->GetMaterial());
     NonStandardStart = true;
@@ -791,7 +801,7 @@ errorT
 Game::SetStartFen (const char * fenStr)
 {
     // First try to read the position:
-    Position * pos = new Position;
+    Position * pos = new Position(this);
     errorT err = pos->ReadFromFEN (fenStr);
     if (err != OK) { delete pos; return err; }
 
@@ -803,6 +813,7 @@ Game::SetStartFen (const char * fenStr)
     VarDepth = 0;
     if (StartPos) { delete StartPos; }
     StartPos = pos;
+    StartPos->SetOwner(this);
     CurrentPos->CopyFrom (StartPos);
     // Now make the material signature:
     FinalMatSig = matsig_Make (StartPos->GetMaterial());
@@ -965,6 +976,8 @@ Game::MoveToPly (ushort hmNumber)
         CurrentPos->CopyFrom (StartPos);
     } else {
         CurrentPos->StdStart();
+        CurrentPos->SetOwner(this);
+        StartPos->CopyFrom(CurrentPos);
     }
     CurrentPlyCount = 0;
     for (ushort i=0; i < hmNumber; i++) {
@@ -1360,6 +1373,7 @@ Game::TruncateStart (void)
     ASSERT (CurrentMove != NULL);
     while (MoveExitVariation() == OK);  // exit variations
     if (!StartPos) { StartPos = new Position; }
+    CurrentPos->SetOwner(this); // just in case?
     StartPos->CopyFrom (CurrentPos);
     NonStandardStart = true;
     CurrentMove->prev->marker = END_MARKER;
@@ -3753,7 +3767,7 @@ makeMoveByte (byte pieceNum, byte value)
 // encodeKing(): encoding of King moves.
 //
 static inline void
-encodeKing (ByteBuffer * buf, simpleMoveT * sm)
+encodeKing (ByteBuffer * buf, simpleMoveT * sm, Position * pos)
 {
     // Valid King difference-from-old-square values are:
     // -9, -8, -7, -1, 1, 7, 8, 9, and -2 and 2 for castling.
@@ -3763,6 +3777,31 @@ encodeKing (ByteBuffer * buf, simpleMoveT * sm)
 
     ASSERT(sm->pieceNum == 0);  // Kings MUST be piece Number zero.
     int diff = (int) sm->to - (int) sm->from;
+
+    squareT kr = NS;
+    squareT qr = NS;
+    rankT krank = square_Rank(sm->from);
+    
+    pieceT * board = pos->GetBoard();
+
+    pieceT friendlyrook = piece_Make( pos->GetToMove(), ROOK );
+
+    squareT kcur;
+    
+    kcur = sm->from;
+    while ( square_Rank(kcur) == krank ) {
+        if ( board[kcur] == friendlyrook ) { kr = kcur; break; }
+        kcur++;
+    }
+    kcur = sm->from;
+    while ( square_Rank(kcur) == krank ) {
+        if ( board[kcur] == friendlyrook ) { qr = kcur; break; }
+        kcur--;
+    }
+
+    if (sm->to == kr) { diff = 2; }
+    if (sm->to == qr) { diff = -2; }
+    
     static const byte val[] = {
     /* -9 -8 -7 -6 -5 -4 -3 -2 -1  0  1   2  3  4  5  6  7  8  9 */
         1, 2, 3, 0, 0, 0, 0, 9, 4, 0, 5, 10, 0, 0, 0, 0, 6, 7, 8
@@ -3785,7 +3824,7 @@ encodeKing (ByteBuffer * buf, simpleMoveT * sm)
 // decodeKing(): decoding of King moves.
 //
 static inline errorT
-decodeKing (byte val, simpleMoveT * sm)
+decodeKing (byte val, simpleMoveT * sm, Position * pos)
 {
     static const int sqdiff[] = {
         0, -9, -8, -7, -1, 1, 7, 8, 9, -2, 2
@@ -3797,8 +3836,34 @@ decodeKing (byte val, simpleMoveT * sm)
     }
 
     if (val < 1  ||  val > 10) { return ERROR_Decode; }
-    sm->to = sm->from + sqdiff[val];
-    return OK;
+    if (val >= 1 && val <= 8) {
+        sm->to = sm->from + sqdiff[val];
+        return OK;
+    }
+    else {
+        int direction;
+        if (val == 9) { direction = -1; }  //queenside
+        if (val == 10) { direction = 1; }  //kingside
+
+        squareT kdest;
+        kdest = NS;
+        squareT kcur = sm->from;
+        rankT krank = square_Rank(sm->from);
+
+        pieceT friendlyrook = piece_Make( pos->GetToMove(), ROOK );
+        pieceT * board = pos->GetBoard();
+
+        while ( square_Rank(kcur) == krank ) {
+            if ( board[kcur] == friendlyrook ) { kdest = kcur; break; }
+            kcur = kcur + direction;
+        }
+        
+        if (kcur != NS) {
+            sm->to = kdest;
+            return OK;
+        }
+    }
+    return ERROR_Decode;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4129,7 +4194,7 @@ decodeMove (ByteBuffer * buf, simpleMoveT * sm, byte val, Position * pos)
         err = decodeBishop (val & 15, sm);
         break;
     case KING:
-        err = decodeKing (val & 15, sm);
+        err = decodeKing (val & 15, sm, pos);
         break;
     // For queen moves: Rook-like moves are in 1 byte, diagonals are in 2.
     case QUEEN:
@@ -4146,7 +4211,7 @@ decodeMove (ByteBuffer * buf, simpleMoveT * sm, byte val, Position * pos)
 //  Encode one move and output it to the bytebuffer.
 //
 static void
-encodeMove (ByteBuffer * buf, moveT * m)
+encodeMove (ByteBuffer * buf, moveT * m, Position * pos)
 {
     simpleMoveT * sm = &(m->moveData);
     pieceT pt = piece_Type(sm->movingPiece);
@@ -4154,7 +4219,7 @@ encodeMove (ByteBuffer * buf, moveT * m)
     typedef void encodeFnType (ByteBuffer *, simpleMoveT *);
     static encodeFnType * encodeFn[] = {
         NULL         /* 0 */,
-        encodeKing   /*1=KING*/,
+        NULL         /*1=KING*/,
         encodeQueen  /*2=QUEEN*/,
         encodeRook   /*3=ROOK*/,
         encodeBishop /*4=BISHOP*/,
@@ -4162,7 +4227,10 @@ encodeMove (ByteBuffer * buf, moveT * m)
         encodePawn   /*6=PAWN*/
     };
     ASSERT (pt >= KING  &&  pt <= PAWN);
-    (encodeFn[pt]) (buf, sm);
+    if (pt > KING ) { (encodeFn[pt]) (buf, sm); }
+    else {
+        encodeKing(buf, sm, pos);
+    }
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4171,7 +4239,7 @@ encodeMove (ByteBuffer * buf, moveT * m)
 //
 static errorT
 encodeVariation (ByteBuffer * buf, moveT * m, uint * subVarCount,
-                 uint * nagCount, uint depth)
+                 uint * nagCount, uint depth, Position * encpos)
 {
     ASSERT (m != NULL);
 
@@ -4180,8 +4248,8 @@ encodeVariation (ByteBuffer * buf, moveT * m, uint * subVarCount,
         buf->PutByte (ENCODE_COMMENT);
     }
 
-    while (m->marker != END_MARKER) {
-        encodeMove (buf, m);
+    while (m->marker != END_MARKER) {            
+        encodeMove (buf, m, encpos);         
         for (uint i=0; i < (uint) m->nagCount; i++) {
             buf->PutByte (ENCODE_NAG);
             buf->PutByte (m->nags[i]);
@@ -4195,10 +4263,14 @@ encodeVariation (ByteBuffer * buf, moveT * m, uint * subVarCount,
             for (uint i=0; i < m->numVariations; i++) {
                 *subVarCount += 1;
                 buf->PutByte (ENCODE_START_MARKER);
-                encodeVariation (buf, subVar->next, subVarCount, nagCount, depth+1);
+                Position * varencpos = new Position();
+                varencpos->CopyFrom(encpos);
+                encodeVariation (buf, subVar->next, subVarCount, nagCount, depth+1, varencpos);
+                delete varencpos;
                 subVar = subVar->varChild;
             }
         }
+        encpos->DoSimpleMove (&(m->moveData));
         m = m->next;
     }
     // At end, we output the end-variation or end-game token.
@@ -4501,7 +4573,10 @@ Game::Encode (ByteBuffer * buf, IndexEntry * ie)
     // Now the movelist:
     uint varCount = 0;
     uint nagCount = 0;
-    err = encodeVariation (buf, FirstMove->next, &varCount, &nagCount, 0);
+    Position * encpos = new Position();
+    encpos->CopyFrom(StartPos);
+    err = encodeVariation (buf, FirstMove->next, &varCount, &nagCount, 0, encpos);
+    delete encpos;
     if (err != OK) { return err; }
 
     // Now do the comments
@@ -4689,6 +4764,7 @@ Game::DecodeStart (ByteBuffer * buf)
             NonStandardStart = 0;
             return err;
         }
+        StartPos->SetOwner(this);
         CurrentPos->CopyFrom (StartPos);
     }
 
@@ -4737,6 +4813,7 @@ Game::Decode (ByteBuffer * buf, byte flags)
             NonStandardStart = 0;
             return err;
         }
+        StartPos->SetOwner(this);
         *CurrentPos = *StartPos;
     }
 

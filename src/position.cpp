@@ -14,6 +14,7 @@
 
 #include "common.h"
 #include "position.h"
+#include "game.h"
 #include "attacks.h"
 #include "misc.h"
 #include "sqlist.h"
@@ -295,6 +296,34 @@ Position::GenKnightMoves (MoveList * mlist, colorT c, squareT fromSq,
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Position::SetRookOrigSq():
+//    Set the original square of a rook
+//    Uses newly programmed pointer to the owner game so we
+//    can use it to find the rook in it's StartPos
+//    If no game * then sets itself
+//
+void
+Position::SetRookOrigSq( colorT color, castleDirT side, squareT sq ) {
+    RookOrigSq[color][side] = sq;
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Position::GetRookOrigSq():
+//    Get the original square of a rook
+//    Uses newly programmed pointer to the owner game so we
+//    can use it to find the rook in it's StartPos
+//
+squareT
+Position::GetRookOrigSq( colorT color, castleDirT side ) {
+    Game * thisgame = GetOwner();
+    if ( thisgame != NULL ) {
+        Position * startpos = thisgame->GetStartPos();
+        if ( startpos != NULL ) { return startpos->RookOrigSq[color][side]; }
+    }
+    return RookOrigSq[color][side];
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Position::GenCastling():
 //    Generate the legal castling moves.
 //    Assumes the side to move is NOT in check, so the caller
@@ -305,43 +334,67 @@ Position::GenCastling (MoveList * mlist)
 {
     ASSERT (! IsKingInCheck());
     squareT from = GetKingSquare(ToMove);
-    if (from != (ToMove == WHITE ? E1 : E8))  { return; }
     squareT enemyKingSq = GetEnemyKingSquare();
-    squareT target, skip, rookSq;
-    pieceT rookPiece;
+    
+    squareT krookOrig = GetRookOrigSq ( ToMove, KSIDE );
+    squareT qrookOrig = GetRookOrigSq ( ToMove, QSIDE );
 
-    // Try kingside first
+    for ( int dir = -1; dir < 2; dir++ ) {
+        if ( dir == 0 ) { continue; }
+        bool ok = false;
+        if ( dir == -1 and (!StrictCastling  ||  GetCastling (ToMove, QSIDE)) ) { ok = true; }
+        if ( dir == 1 and (!StrictCastling  ||  GetCastling (ToMove, KSIDE)) ) { ok = true; }
+        if ( ! ok ) { continue; }
 
-    // Kingside Castling:
-    if (!StrictCastling  ||  GetCastling (ToMove, KSIDE)) {
-        if (ToMove == WHITE) {
-            target = G1; skip = F1; rookSq = H1; rookPiece = WR;
-        } else {
-            target = G8; skip = F8; rookSq = H8; rookPiece = BR;
-        }
-        if (Board[target] == EMPTY  &&  Board[skip] == EMPTY
-                &&  Board[rookSq] == rookPiece
-                &&  CalcNumChecks (target) == 0
-                &&  CalcNumChecks (skip) == 0
-                &&  ! square_Adjacent (target, enemyKingSq)) {
-            AddLegalMove (mlist, from, target, EMPTY);
-        }
-    }
+        for ( squareT rookSq = from; square_Rank(rookSq) == square_Rank(from); rookSq=rookSq+dir ) {
+            if ( Board[rookSq] == piece_Make(ToMove, ROOK) ) { 
+                if ( dir == -1 && rookSq != qrookOrig ) { break; } // correct side, wrong rook
+                if ( dir == 1 && rookSq != krookOrig ) { break; } // correct side, wrong rook
+                squareT furthest_left, furthest_right, king_left, king_right;
+                squareT kdest, rdest;
+                squareT kingSq = from;
 
-    // Queenside Castling:
-    if (!StrictCastling  ||  GetCastling (ToMove, QSIDE)) {
-        if (ToMove == WHITE) {
-            target = C1; skip = D1; rookSq = A1; rookPiece = WR;
-        } else {
-            target = C8; skip = D8; rookSq = A8; rookPiece = BR;
-        }
-        if (Board[target] == EMPTY  &&  Board[skip] == EMPTY
-                &&  Board[rookSq] == rookPiece
-                &&  Board[target - 1] == EMPTY // B1 or B8 must be empty too!
-                &&  CalcNumChecks (target) == 0
-                &&  CalcNumChecks (skip) == 0
-                &&  ! square_Adjacent (target, enemyKingSq)) {
-            AddLegalMove (mlist, from, target, EMPTY);
+                if ( dir > 0 ) {
+                    kdest = (ToMove == WHITE ? G1 : G8);
+                    rdest = (ToMove == WHITE ? F1 : F8);
+                }
+                if (dir < 0) {
+                    kdest = (ToMove == WHITE ? C1 : C8);
+                    rdest = (ToMove == WHITE ? D1 : D8);
+                }
+                furthest_left = kdest;
+                if (kingSq < furthest_left) { furthest_left = kingSq; }
+                if (rookSq < furthest_left) { furthest_left = rookSq; }
+                if (rdest < furthest_left) { furthest_left = rdest; }
+
+                king_left = kdest;
+                if (kingSq < king_left) { king_left = kingSq; }
+
+                furthest_right = kdest;
+                if (kingSq > furthest_right) { furthest_right = kingSq; }
+                if (rookSq > furthest_right) { furthest_right = rookSq; }
+                if (rdest > furthest_right) { furthest_right = rdest; }
+
+                king_right = kdest;
+                if (kingSq > king_right) { king_right = kingSq; }
+                
+                bool ok2 = true;
+                for (squareT sq = king_left; sq <= king_right; sq++) {
+                    if (CalcNumChecks(sq) > 0) { ok2 = false; break; }
+                    if (square_Adjacent (sq, enemyKingSq)) { ok2 = false; break; }
+                }
+
+                if ( ! ok2 ) { break; }
+
+                uint piececount = 0;
+                for (squareT sq = furthest_left; sq <= furthest_right; sq++) {
+                    if (Board[sq] != EMPTY) { piececount++ ; }
+                }
+                if (piececount > 2) { break; }
+
+                AddLegalMove (mlist, from, rookSq, EMPTY);
+                break;
+            }
         }
     }
 }
@@ -563,14 +616,15 @@ Position::GetHPSig (void)
 //      Initialise the position after it is constructed.
 //
 void
-Position::Init (void)
+Position::Init (Game * owner)
 {
     // Setting up a valid board is left to StdStart() or Clear().
+    Owner = owner;
     Board [COLOR_SQUARE] = EMPTY;
     Board [NULL_SQUARE] = END_OF_BOARD;
 	LegalMoves.Clear();
     StrictCastling = true;
-
+    
     // Make sure all tables used for move generation, hashing,
     // square tests, etc have been computed:
     initHashValues();
@@ -599,6 +653,12 @@ Position::Clear (void)
     Count[WHITE] = Count[BLACK] = 0;
     EPTarget = NULL_SQUARE;
     Castling = 0;
+
+    //SetRookOrigSq (WHITE, QSIDE, NS);
+    //SetRookOrigSq (WHITE, KSIDE, NS);
+    //SetRookOrigSq (BLACK, QSIDE, NS);
+    //SetRookOrigSq (BLACK, KSIDE, NS);
+
     Board [NULL_SQUARE] = END_OF_BOARD;
     PlyCounter = 0;
     HalfMoveClock = 0;
@@ -654,6 +714,12 @@ Position::StdStart (void)
         Castling = 0;
         SetCastling (WHITE, QSIDE, true);  SetCastling (WHITE, KSIDE, true);
         SetCastling (BLACK, QSIDE, true);  SetCastling (BLACK, KSIDE, true);
+
+        SetRookOrigSq (WHITE, QSIDE, A1);
+        SetRookOrigSq (WHITE, KSIDE, H1);
+        SetRookOrigSq (BLACK, QSIDE, A8);
+        SetRookOrigSq (BLACK, KSIDE, H8);
+
         EPTarget = NULL_SQUARE;
         ToMove = WHITE;
         PlyCounter = 0;
@@ -1252,51 +1318,83 @@ Position::MatchKingMove (MoveList * mlist, squareT target)
     squareT kingSq = GetKingSquare(ToMove);
     sint diff = (int)target - (int) kingSq;
 
-    // Valid diffs are: -9, -8, -7, -2, -1, 1, 2, 7, 8, 9. (-2,2: Castling)
-
-    if (diff < -9  ||  diff > 9) { return ERROR_InvalidMove; }
-    if (diff > -7  &&  diff < -2) { return ERROR_InvalidMove; }
-    if (diff > 2  &&  diff < 7) { return ERROR_InvalidMove; }
     if (diff == 0) { return ERROR_InvalidMove; }
 
-    if (diff == 2) { // KingSide Castling
-        if (kingSq != (ToMove == WHITE ? E1 : E8)) {
-            return ERROR_InvalidMove;
+    squareT rookSq;
+    rankT kingRnk = square_Rank(kingSq);
+    rankT targetRnk = square_Rank(target);
+
+    bool castle_attempt = false;
+    if ( Board[target] == piece_Make(ToMove, ROOK) ) { 
+        castle_attempt = true; 
+    }
+    if (! castle_attempt) {
+        if (targetRnk != kingRnk) {
+            if (diff < -9  ||  diff > 9) { return ERROR_InvalidMove; }
+            if (diff > -6  &&  diff < 6) { return ERROR_InvalidMove; }
         }
-        if (StrictCastling  &&  ! GetCastling (ToMove, KSIDE)) {
-            return ERROR_InvalidMove;
+        else if ( diff > 1 || diff < -1 ) { return ERROR_InvalidMove; }
+    }
+
+    //check for all squares king has to move not touched by king or in check
+    //check all furthest  only occupied by 2 pieces
+
+    squareT enemyKingSq = GetEnemyKingSquare();
+
+    if (castle_attempt) {
+        rookSq = target;
+
+        squareT furthest_left, furthest_right, king_left, king_right;
+        squareT kdest, rdest;
+
+        if ( diff > 0 ) { // KingSide Castling
+            if ( rookSq != GetRookOrigSq ( ToMove, KSIDE ) ) { return ERROR_InvalidMove; }
+            kdest = (ToMove == WHITE ? G1 : G8);
+            rdest = (ToMove == WHITE ? F1 : F8);
+        }
+        if (diff < 0) { // Queenside Castling
+            if ( rookSq != GetRookOrigSq ( ToMove, QSIDE ) ) { return ERROR_InvalidMove; }
+            kdest = (ToMove == WHITE ? C1 : C8);
+            rdest = (ToMove == WHITE ? D1 : D8);
         }
 
-        // XXX We also need to verify that the target square does not
-        //     lie adjacent to the location of the enemy king!
+        furthest_left = kdest;
+        if (kingSq < furthest_left) { furthest_left = kingSq; }
+        if (rookSq < furthest_left) { furthest_left = rookSq; }
+        if (rdest < furthest_left) { furthest_left = rdest; }
 
-        if (Board[kingSq + 1] != EMPTY  ||  Board[kingSq + 2] != EMPTY
-            ||  CalcNumChecks(kingSq) > 0
-            ||  CalcNumChecks(kingSq + 1) > 0
-            ||  CalcNumChecks(kingSq + 2) > 0) {
-            return ERROR_InvalidMove;
+        king_left = kdest;
+        if (kingSq < king_left) { king_left = kingSq; }
+
+        furthest_right = kdest;
+        if (kingSq > furthest_right) { furthest_right = kingSq; }
+        if (rookSq > furthest_right) { furthest_right = rookSq; }
+        if (rdest > furthest_right) { furthest_right = rdest; }
+
+        king_right = kdest;
+        if (kingSq > king_right) { king_right = kingSq; }
+
+        for (squareT sq = king_left; sq <= king_right; sq++) {
+            if (CalcNumChecks(sq) > 0) { return ERROR_InvalidMove; }
         }
+
+        uint piececount = 0;
+        for (squareT sq = furthest_left; sq <= furthest_right; sq++) {
+            if (Board[sq] != EMPTY) { piececount++ ; }
+        }
+        if (piececount > 2) { return ERROR_InvalidMove; }
+
+        bool ok2 = true;
+        for (squareT sq = king_left; sq <= king_right; sq++) {
+            if (CalcNumChecks(sq) > 0) { ok2 = false; break; }
+            if (square_Adjacent (sq, enemyKingSq)) { ok2 = false; break; }
+        }
+        if (!ok2) { return ERROR_InvalidMove; }
+
         AddLegalMove (mlist, kingSq, target, EMPTY);
         return OK;
     }
 
-    if (diff == -2) { // Queenside Castling
-        if (kingSq != (ToMove == WHITE ? E1 : E8)) {
-            return ERROR_InvalidMove;
-        }
-        if (StrictCastling  &&  ! GetCastling (ToMove, QSIDE)) {
-            return ERROR_InvalidMove;
-        }
-        if (Board[kingSq - 1] != EMPTY  ||  Board[kingSq - 2] != EMPTY
-            ||  Board[kingSq - 3] != EMPTY
-            ||  CalcNumChecks(kingSq) > 0
-            ||  CalcNumChecks(kingSq - 1) > 0
-            ||  CalcNumChecks(kingSq - 2) > 0) {
-            return ERROR_InvalidMove;
-        }
-        AddLegalMove (mlist, kingSq, target, EMPTY);
-        return OK;
-    }
     pieceT captured = Board[target];
     if (piece_Color(captured) == ToMove) {
         // Capturing a friendly piece!
@@ -1307,6 +1405,8 @@ Position::MatchKingMove (MoveList * mlist, squareT target)
     // leaves the King in check:
     // XXX We should also check for adjacency to enemy King!!
 
+    // why not get rid of :
+    /*
     Board[target] = piece_Make(ToMove, KING);
     Board[kingSq] = EMPTY;
     if (captured != EMPTY) { Material[captured]--; }
@@ -1319,9 +1419,17 @@ Position::MatchKingMove (MoveList * mlist, squareT target)
         AddLegalMove (mlist, kingSq, target, EMPTY);
         return OK;
     }
+    */
+    // and just do:
+    if ( CalcNumChecks(target) == 0 && ! square_Adjacent (target, enemyKingSq) ) {
+        AddLegalMove (mlist, kingSq, target, EMPTY);
+        return OK;
+    }
+
+
+
     return ERROR_InvalidMove;
 }
-
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Position::GenCheckEvasions():
@@ -1820,6 +1928,25 @@ Position::DoSimpleMove (simpleMoveT * sm)
     sm->epSquare = EPTarget;
     sm->oldHalfMoveClock = HalfMoveClock;
 
+    sm->kingTo = NS;
+    sm->kingFrom = NS;
+    sm->rookFrom = NS;
+    sm->rookTo = NS;
+
+    if ( ptype == KING && Board[to] == piece_Make( ToMove, ROOK) ) { 
+        sm->capturedPiece = EMPTY; 
+        sm->kingFrom = from;
+        sm->rookFrom = to;
+        if (from < to) {  //kingside
+            sm->kingTo = ( ToMove == WHITE ? G1 : G8 );
+            sm->rookTo = ( ToMove == WHITE ? F1 : F8 );
+        }
+        else {  //queenside
+            sm->kingTo = ( ToMove == WHITE ? C1 : C8 );
+            sm->rookTo = ( ToMove == WHITE ? D1 : D8 );
+        }
+    }
+
     HalfMoveClock++;
     PlyCounter++;
 	LegalMoves.Clear();
@@ -1871,28 +1998,30 @@ Position::DoSimpleMove (simpleMoveT * sm)
     }
 
     // now make the move:
-    List[ToMove][sm->pieceNum] = to;
-    ListPos[to] = sm->pieceNum;
-    RemoveFromBoard (p, from);
-    AddToBoard (p, to);
+    if ( sm->kingFrom == NS ) { // not castling
+        List[ToMove][sm->pieceNum] = to;
+        ListPos[to] = sm->pieceNum;
+        RemoveFromBoard (p, from);
+        AddToBoard (p, to);
+    }
 
     // handle Castling:
 
-    if (ptype == KING  &&  square_Fyle(from) == E_FYLE  &&
-            (square_Fyle(to) == C_FYLE  ||  square_Fyle(to) == G_FYLE)) {
-        squareT rookfrom, rookto;
+    if ( sm->kingFrom != NS ) { // castling
         pieceT rook = piece_Make (ToMove, ROOK);
-        if (square_Fyle(to) == C_FYLE) {
-            rookfrom = to - 2;
-            rookto = to + 1;
-        } else {
-            rookfrom = to + 1;
-            rookto = to - 1;
-        }
-        ListPos[rookto] = ListPos[rookfrom];
-        List[ToMove][ListPos[rookto]] = rookto;
-        RemoveFromBoard (rook, rookfrom);
-        AddToBoard (rook, rookto);
+
+        byte king_pieceNum = sm->pieceNum;
+        byte rook_pieceNum = ListPos[sm->rookFrom];
+
+        List[ToMove][king_pieceNum] = sm->kingTo;
+        List[ToMove][rook_pieceNum] = sm->rookTo;
+        ListPos[sm->kingTo] = king_pieceNum;
+        ListPos[sm->rookTo] = rook_pieceNum;
+
+        RemoveFromBoard (p, sm->kingFrom);
+        RemoveFromBoard (rook, sm->rookFrom);
+        AddToBoard (p, sm->kingTo);
+        AddToBoard (rook, sm->rookTo);
     }
 
     // Handle clearing of castling flags:
@@ -1903,6 +2032,7 @@ Position::DoSimpleMove (simpleMoveT * sm)
             SetCastling (ToMove, KSIDE, false);
         }
         // See if a rook moved or was captured:
+/*
         if (ToMove == WHITE) {
             if (from == A1)  { SetCastling (WHITE, QSIDE, false); }
             if (from == H1)  { SetCastling (WHITE, KSIDE, false); }
@@ -1913,6 +2043,24 @@ Position::DoSimpleMove (simpleMoveT * sm)
             if (from == H8)  { SetCastling (BLACK, KSIDE, false); }
             if (to == A1)    { SetCastling (WHITE, QSIDE, false); }
             if (to == H1)    { SetCastling (WHITE, KSIDE, false); }
+        }
+*/
+
+        squareT WKR_sq = GetRookOrigSq ( WHITE, KSIDE );
+        squareT WQR_sq = GetRookOrigSq ( WHITE, QSIDE );
+        squareT BKR_sq = GetRookOrigSq ( BLACK, KSIDE );
+        squareT BQR_sq = GetRookOrigSq ( BLACK, QSIDE );
+
+        if (ToMove == WHITE) {
+            if (from == WQR_sq)  { SetCastling (WHITE, QSIDE, false); }
+            if (from == WKR_sq)  { SetCastling (WHITE, KSIDE, false); }
+            if (to == BQR_sq)    { SetCastling (BLACK, QSIDE, false); }
+            if (to == BKR_sq)    { SetCastling (BLACK, KSIDE, false); }
+        } else {
+            if (from == BQR_sq)  { SetCastling (BLACK, QSIDE, false); }
+            if (from == BKR_sq)  { SetCastling (BLACK, KSIDE, false); }
+            if (to == WQR_sq)    { SetCastling (WHITE, QSIDE, false); }
+            if (to == WKR_sq)    { SetCastling (WHITE, KSIDE, false); }
         }
     }
 
@@ -2000,29 +2148,37 @@ Position::UndoSimpleMove (simpleMoveT * m)
 
     // now make the move:
 
-    List[ToMove][m->pieceNum] = from;
-    ListPos[from] = m->pieceNum;
-    RemoveFromBoard (p, to);
-    AddToBoard (p, from);
-    if (m->capturedPiece != EMPTY) {
-        AddToBoard (m->capturedPiece, m->capturedSquare);
+    if ( m->kingFrom > H8 ) { // not castling
+        List[ToMove][m->pieceNum] = from;
+        ListPos[from] = m->pieceNum;
+        RemoveFromBoard (p, to);
+        AddToBoard (p, from);
+        if (m->capturedPiece != EMPTY) {
+            AddToBoard (m->capturedPiece, m->capturedSquare);
+        }
     }
 
     // handle Castling:
 
-    if ((piece_Type(p) == KING) && square_Fyle(from) == E_FYLE
-            && (square_Fyle(to) == C_FYLE || square_Fyle(to) == G_FYLE)) {
-        squareT rookfrom, rookto;
+    if ( m->kingFrom <= H8 ) { // castling
+        m->pieceNum = ListPos[m->kingTo];
+        p = Board[m->kingTo];
         pieceT rook = (ToMove == WHITE? WR : BR);
-        if (square_Fyle(to) == C_FYLE) {
-            rookfrom = to - 2;   rookto = to + 1;
-        } else {
-            rookfrom = to + 1;   rookto = to - 1;
-        }
-        ListPos[rookfrom] = ListPos[rookto];
-        List[ToMove][ListPos[rookto]] = rookfrom;
-        RemoveFromBoard (rook, rookto);
-        AddToBoard (rook, rookfrom);
+
+        byte king_pieceNum = m->pieceNum;
+        byte rook_pieceNum = ListPos[m->rookTo];
+
+        List[ToMove][king_pieceNum] = m->kingFrom;
+        List[ToMove][rook_pieceNum] = m->rookFrom;
+        ListPos[m->kingFrom] = king_pieceNum;
+        ListPos[m->rookFrom] = rook_pieceNum;
+
+        RemoveFromBoard (p, m->kingTo);
+        RemoveFromBoard (rook, m->rookTo);
+        AddToBoard (p, m->kingFrom);
+        AddToBoard (rook, m->rookFrom);
+
+        m->to = m->rookFrom;
     }
 
 #ifdef ASSERTIONS
@@ -2136,6 +2292,7 @@ Position::MakeSANString (simpleMoveT * m, char * s, sanFlagT flag)
 
     // Make sure m->pieceNum is updated:
     m->pieceNum = ListPos[m->from];
+
     pieceT  p    = piece_Type (Board[List[ToMove][m->pieceNum]]);
     squareT from = List[ToMove][m->pieceNum];
     squareT to   = m->to;
@@ -2158,11 +2315,13 @@ Position::MakeSANString (simpleMoveT * m, char * s, sanFlagT flag)
             //*c++ = 'n'; *c++ = 'u'; *c++ = 'l'; *c++ = 'l';
             *c++ = '-'; *c++ = '-';
         } else
-        if ((square_Fyle(from)==E_FYLE) && (square_Fyle(to)==G_FYLE)) {
-            *c++ = 'O'; *c++ = '-'; *c++ = 'O';
-        } else
-        if ((square_Fyle(from)==E_FYLE) && (square_Fyle(to)==C_FYLE)) {
-            *c++ = 'O'; *c++ = '-'; *c++ = 'O'; *c++ = '-'; *c++ = 'O';
+        if ( Board[to] == piece_Make(ToMove,ROOK) ) {
+            if (from < to) {
+                *c++ = 'O'; *c++ = '-'; *c++ = 'O';
+            }
+            else {
+                *c++ = 'O'; *c++ = '-'; *c++ = 'O'; *c++ = '-'; *c++ = 'O';
+            }
         } else {  // regular King move
             *c++ = 'K';
             if (Board[to] != EMPTY)  *c++ = 'x';
@@ -2430,9 +2589,22 @@ Position::ReadMove (simpleMoveT * m, const char * str, tokenT token)
     // Here we handle piece moves, including castling
     if (token != TOKEN_Move_Piece) {  // Must be castling move
         ASSERT (token == TOKEN_Move_Castle_King  ||  token == TOKEN_Move_Castle_Queen);
-        from = (ToMove == WHITE ? E1 : E8);
-        if (GetKingSquare(ToMove) != from) { return ERROR_InvalidMove; }
-        to = (token == TOKEN_Move_Castle_King ? (from + 2) : (from - 2));
+
+        rankT kingrank;
+        from = GetKingSquare(ToMove);
+        kingrank = square_Rank(from);
+
+        int direction = ( token == TOKEN_Move_Castle_King ? 1 : -1 );
+
+        for (squareT sq = from + direction; square_Rank(sq) == kingrank; sq = sq + direction) {
+            if ( Board[sq] == piece_Make(ToMove, ROOK) ) {
+                to = sq;
+                break;
+            }
+        }
+
+        if (to == NS) { return ERROR_InvalidMove; }
+
         if (MatchKingMove (&mlist, to) != OK) {
             return ERROR_InvalidMove;
         } else {
@@ -2915,31 +3087,138 @@ Position::ReadFromFEN (const char * str)
     if (*s == '-') {
         s++;  // do nothing
     } else if (*s == 0) {
-        // The FEN has no castling field, so just guess that
-        // castling is possible whenever a king and rook are
-        // still on their starting squares:
-        if (Board[E1] == WK) {
-            if (Board[A1] == WR) { SetCastling (WHITE, QSIDE, true); }
-            if (Board[H1] == WR) { SetCastling (WHITE, KSIDE, true); }
+        // The FEN has no castling field,
+        // give em outer rooks
+        squareT wksq = GetKingSquare (WHITE);
+        squareT bksq = GetKingSquare (BLACK);
+
+        squareT wrsq = NS;
+        squareT brsq = NS;
+
+        for (int i=0; i<8; i++) { 
+            wrsq = A1 + i;
+            if (Board[wrsq] == WR && wksq > wrsq) { 
+                SetRookOrigSq (WHITE, QSIDE, wrsq); 
+                SetCastling (WHITE, QSIDE, true);
+                break; 
+            }
         }
-        if (Board[E8] == BK) {
-            if (Board[A8] == BR) { SetCastling (BLACK, QSIDE, true); }
-            if (Board[H8] == BR) { SetCastling (BLACK, KSIDE, true); }
+        for (int i=0; i<8; i++) { 
+            brsq = A8 + i;
+            if (Board[brsq] == BR && bksq > brsq) { 
+                SetRookOrigSq (BLACK, QSIDE, brsq); 
+                SetCastling (BLACK, QSIDE, true);
+                break; 
+            }
+        
         }
-    } else {
+        for (int i=0; i<8; i++) { 
+            wrsq = H1 - i;
+            if (Board[wrsq] == WR && wksq < wrsq) { 
+                SetRookOrigSq (WHITE, KSIDE, wrsq); 
+                SetCastling (WHITE, KSIDE, true);
+                break; 
+            }
+        
+        }
+        for (int i=0; i<8; i++) { 
+            brsq = H8 - i;
+            if (Board[brsq] == BR && bksq < brsq) { 
+                SetRookOrigSq (BLACK, KSIDE, brsq); 
+                SetCastling (BLACK, KSIDE, true);
+                break; 
+            }
+        }
+    } else { // could need to to disambiguate; this handles xfen or shredder
         while (!isspace(*s)  &&  *s != 0) {
+            squareT rsq = NS;
+            squareT ksq = NS;
             switch (*s) {
             case 'Q':
-                SetCastling (WHITE, QSIDE, true);
+                ksq = GetKingSquare (WHITE);
+                for (int i=0; i<8; i++) { 
+                    rsq = A1 + i;
+                    if (Board[rsq] == WR && ksq > rsq) { 
+                        SetRookOrigSq (WHITE, QSIDE, rsq); 
+                        SetCastling (WHITE, QSIDE, true);
+                        break; 
+                    } 
+                }
                 break;
             case 'q':
-                SetCastling (BLACK, QSIDE, true);
+                ksq = GetKingSquare (BLACK);
+                for (int i=0; i<8; i++) { 
+                    rsq = A8 + i;
+                    if (Board[rsq] == BR && ksq > rsq) { 
+                        SetRookOrigSq (BLACK, QSIDE, rsq); 
+                        SetCastling (BLACK, QSIDE, true);
+                        break; 
+                    } 
+                }
                 break;
             case 'K':
-                SetCastling (WHITE, KSIDE, true);
+                ksq = GetKingSquare (WHITE);
+                for (int i=0; i<8; i++) { 
+                    rsq = H1 - i;
+                    if (Board[rsq] == WR && ksq < rsq) { 
+                        SetRookOrigSq (WHITE, KSIDE, rsq); 
+                        SetCastling (WHITE, KSIDE, true);
+                        break; 
+                    } 
+                }
                 break;
             case 'k':
-                SetCastling (BLACK, KSIDE, true);
+                ksq = GetKingSquare (BLACK);
+                for (int i=0; i<8; i++) { 
+                    rsq = H8 - i;
+                    if (Board[rsq] == BR && ksq < rsq) { 
+                        SetRookOrigSq (BLACK, KSIDE, rsq); 
+                        SetCastling (BLACK, KSIDE, true);
+                        break; 
+                    } 
+                }
+                break;
+            case 'A':
+            case 'B':
+            case 'C':
+            case 'D':
+            case 'E':
+            case 'F':
+            case 'G':
+            case 'H':
+                ksq = GetKingSquare (WHITE);
+                rsq = square_Make ( fyle_FromChar ( (char)((int)*s + 32) ), RANK_1 );
+                if ( Board[rsq] == WR ) {
+                    if ( rsq > ksq ) { 
+                        SetRookOrigSq (WHITE, KSIDE, rsq); 
+                        SetCastling (WHITE, KSIDE, true);
+                    }
+                    else { 
+                        SetRookOrigSq (WHITE, QSIDE, rsq); 
+                        SetCastling (WHITE, QSIDE, true);
+                    }
+                }
+                break;
+            case 'a':
+            case 'b':
+            case 'c':
+            case 'd':
+            case 'e':
+            case 'f':
+            case 'g':
+            case 'h':
+                ksq = GetKingSquare (BLACK);
+                rsq = square_Make ( fyle_FromChar ( (char) *s ), RANK_8 );
+                if ( Board[rsq] == BR ) {
+                    if ( rsq > ksq ) { 
+                        SetRookOrigSq (BLACK, KSIDE, rsq); 
+                        SetCastling (BLACK, KSIDE, true);
+                    }
+                    else { 
+                        SetRookOrigSq (BLACK, QSIDE, rsq); 
+                        SetCastling (BLACK, QSIDE, true); 
+                    }
+                }
                 break;
             default:
                 return ERROR_InvalidFEN;
@@ -3031,10 +3310,97 @@ Position::PrintFEN (char * str, uint flags)
         if (Castling == 0)  {
             *str++ = '-';
         } else {
-            if (GetCastling (WHITE, KSIDE))  { *str++ = 'K'; }
-            if (GetCastling (WHITE, QSIDE))  { *str++ = 'Q'; }
-            if (GetCastling (BLACK, KSIDE))  { *str++ = 'k'; }
-            if (GetCastling (BLACK, QSIDE))  { *str++ = 'q'; }
+            Game * thisgame = GetOwner();
+            Position * startpos = NULL;
+            if ( thisgame != NULL ) { startpos = thisgame->GetStartPos(); }
+
+            if ( startpos ) {
+                squareT wking_sq = GetKingSquare(WHITE);
+                squareT bking_sq = GetKingSquare(BLACK);
+
+                squareT orig_white_king_rook_sq = GetRookOrigSq(WHITE, KSIDE);
+                squareT orig_white_queen_rook_sq = GetRookOrigSq(WHITE, QSIDE);
+                squareT orig_black_king_rook_sq = GetRookOrigSq(BLACK, KSIDE);
+                squareT orig_black_queen_rook_sq = GetRookOrigSq(BLACK, QSIDE);
+
+                squareT white_king_outer_rook_sq = NS;
+                squareT white_king_inner_rook_sq = NS;
+                squareT white_queen_outer_rook_sq = NS;
+                squareT white_queen_inner_rook_sq = NS;
+                squareT black_king_outer_rook_sq = NS;
+                squareT black_king_inner_rook_sq = NS;
+                squareT black_queen_outer_rook_sq = NS;
+                squareT black_queen_inner_rook_sq = NS;
+
+                for (int i=0; i<8; i++) {
+                    int wsq = A1+i;
+                    int bsq = A8+i;
+                    if ( Board[wsq] == WR) {
+                        if ( wsq < wking_sq ) { //queenside
+                            if ( white_queen_outer_rook_sq == NS ) { 
+                                white_queen_outer_rook_sq = wsq; 
+                                white_queen_inner_rook_sq = wsq;
+                            }
+                            else { white_queen_inner_rook_sq = wsq; }
+                        }
+                        else { //kingside
+                            if ( white_king_inner_rook_sq == NS ) { 
+                                white_king_inner_rook_sq = wsq; 
+                                white_king_outer_rook_sq = wsq;
+                            }
+                            else { white_king_outer_rook_sq = wsq; }
+                        }
+                    }
+                    if ( Board[bsq] == BR ) {
+                        if ( bsq < bking_sq ) { //queenside
+                            if ( black_queen_outer_rook_sq == NS ) { 
+                                black_queen_outer_rook_sq = bsq; 
+                                black_queen_inner_rook_sq = bsq;
+                            }
+                            else { black_queen_inner_rook_sq = bsq; }
+                        }
+                        else { //kingside
+                            if ( black_king_inner_rook_sq == NS ) { 
+                                black_king_inner_rook_sq = bsq; 
+                                black_king_outer_rook_sq = bsq;
+                            }
+                            else { black_king_outer_rook_sq = bsq; }
+                        }
+                    }
+                }
+
+                bool something = false;
+
+                if ( GetCastling (WHITE, KSIDE) ) {
+                    if ( white_king_outer_rook_sq != orig_white_king_rook_sq )  { *str++ = square_Fyle(white_king_inner_rook_sq) + 'A'; }
+                    else { *str++ = 'K'; }
+                    something = true;
+                }
+                if ( GetCastling (WHITE, QSIDE) ) {
+                    if ( white_queen_outer_rook_sq != orig_white_queen_rook_sq )  { *str++ = square_Fyle(white_queen_inner_rook_sq) + 'A'; }
+                    else { *str++ = 'Q'; }
+                    something = true;
+                }
+                if ( GetCastling (BLACK, KSIDE) ) {
+                    if ( black_king_outer_rook_sq != orig_black_king_rook_sq )  { *str++ = square_Fyle(black_king_inner_rook_sq) + 'a'; }
+                    else { *str++ = 'k'; }
+                    something = true;
+                }
+                if ( GetCastling (BLACK, QSIDE) ) {
+                    if ( black_queen_outer_rook_sq != orig_black_queen_rook_sq )  { *str++ = square_Fyle(black_queen_inner_rook_sq) + 'a'; }
+                    else { *str++ = 'q'; }
+                    something = true;
+                }
+
+                if ( ! something ) { *str++ = '-'; }
+            }
+
+            else {
+                if (GetCastling (WHITE, KSIDE))  { *str++ = 'K'; }
+                if (GetCastling (WHITE, QSIDE))  { *str++ = 'Q'; }
+                if (GetCastling (BLACK, KSIDE))  { *str++ = 'k'; }
+                if (GetCastling (BLACK, QSIDE))  { *str++ = 'q'; }
+            }
         }
         *str++ = ' ';
 

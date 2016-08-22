@@ -46,11 +46,8 @@ static char decimalPointChar = '.';
 static uint htmlDiagStyle = 0;
 
 // Default maximum number of games in the clipbase database:
-#ifdef WINCE
-const uint CLIPBASE_MAX_GAMES = 10000;
-#else
-const uint CLIPBASE_MAX_GAMES = 1000000;
-#endif
+const uint CLIPBASE_MAX_GAMES = 5000000; // 5 million
+
 // Actual current maximum number of games in the clipbase database:
 static uint clipbaseMaxGames = CLIPBASE_MAX_GAMES;
 
@@ -519,8 +516,8 @@ scid_InitTclTk (Tcl_Interp * ti)
     clipbase->backupCache->SetPolicy (TREECACHE_Oldest);
 
     currentBase = 0;
-    scratchPos = new Position;
     scratchGame = new Game;
+    scratchPos = new Position(scratchGame);
     db = &(dbList[currentBase]);
 
 #ifndef TCL_ONLY
@@ -8306,8 +8303,7 @@ sc_savegame (Tcl_Interp * ti, Game * game, gameNumberT gnum, scidBaseT * base)
         return TCL_ERROR;
     }
     if (base == clipbase   &&  base->numGames >= clipbaseMaxGames) {
-        sprintf (temp, "The clipbase has a limit of %u games.\n",
-                 clipbaseMaxGames);
+        sprintf (temp, "The clipbase has a limit of %u games.\n", clipbaseMaxGames);
         Tcl_AppendResult (ti, temp, NULL);
         return TCL_ERROR;
     }
@@ -14951,6 +14947,7 @@ sc_search_board (ClientData cd, Tcl_Interp * ti, int argc, const char ** argv)
         char cboard [40];
         pos->PrintCompactStrFlipped (cboard);
         posFlip->ReadFromCompactStr ((byte *) cboard);
+        posFlip->SetOwner(db->game);
         hpSigFlip = posFlip->GetHPSig();
         msigFlip = matsig_Make (posFlip->GetMaterial());
     }

@@ -24,6 +24,8 @@
 #include "sqset.h"
 #include "tokens.h"
 
+class Game;
+
 //////////////////////////////////////////////////////////////////////
 //  Position:  Constants
 
@@ -77,6 +79,8 @@ private:
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //  Position:  Data structures
 
+    Game *          Owner;
+
     pieceT          Board[66];      // the actual board + a color square
                                     // and a NULL square.
     uint            Count[2];       // count of pieces & pawns each
@@ -94,6 +98,8 @@ private:
     directionT      Pinned[16];     // For each List[ToMove][x], stores
                                         // whether piece is pinned to its
                                         // own king and dir from king.
+
+    squareT         RookOrigSq[2][2];    // sq of castling rook per color, side
 
     squareT         EPTarget;       // square pawns can EP capture to
     colorT          ToMove;
@@ -157,11 +163,12 @@ public:
   }
 
 #endif
-    Position()   { Init(); }
+    Position()   { Init( NULL ); }
+    Position(Game * owner)   { Init( owner ); }
     Position(const Position& p);
     ~Position()  {}
 
-    void        Init();
+    void        Init(Game * owner);
     void        Clear();        // No pieces on board
     void        StdStart();     // Standard chess starting position
     bool        IsStdStart();
@@ -178,6 +185,12 @@ public:
     void        SetPlyCounter (ushort x) { PlyCounter = x; }
     ushort      GetPlyCounter ()         { return PlyCounter; }
     ushort      GetFullMoveCount ()      { return PlyCounter / 2 + 1; }
+
+    Game *      GetOwner()               { return Owner; }
+    void        SetOwner(Game * owner)   { Owner = owner; }
+
+    void        SetRookOrigSq( colorT color, castleDirT side, squareT sq );
+    squareT     GetRookOrigSq( colorT color, castleDirT side );
 
     // Methods to get the Board or piece lists -- used in game.cpp to
     // decode moves:

@@ -46,6 +46,11 @@ struct simpleMoveT
     squareT  epSquare;       // pre-move information
     ushort   oldHalfMoveClock;
     int      score;          // used for alpha/beta ordering.
+
+    squareT  kingFrom;
+    squareT  kingTo;
+    squareT  rookFrom;
+    squareT  rookTo;
 };
 
 inline bool isNullMove (simpleMoveT * sm)
