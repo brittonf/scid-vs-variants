@@ -304,9 +304,17 @@ proc progressWindow {args} {
     set button [lindex $args 2]
     set command [lindex $args 3]
     set b 1
-  } else { return }
+  } else {
+    ::splash::add "progressWindow: wrong number of args" error
+    return
+  }
   wm title $w $title
+
+  # This is the best way to keep win on top, but
+  # has the effect of raising .main after progressWin closes :(
+  # We need a parent arg
   wm transient $w .main
+
   label $w.t -text $text
   pack $w.t -side top
   canvas $w.c -width 400 -height 20  -relief solid -border 1
@@ -629,7 +637,7 @@ namespace eval html {
     catch { file copy -force [file join $sourcedir scid.js] $dirtarget }
     catch { file copy -force [file join $sourcedir scid.css] $dirtarget }
     writeIndex "[file join $dirtarget $prefix].html" $prefix
-    progressWindow "Scid" "Exporting games..." $::tr(Cancel) "sc_progressBar"
+    progressWindow "Scid" "Exporting games..." $::tr(Stop) "sc_progressBar"
     busyCursor .
     set savedGameNum [sc_game number]
     set gn [sc_filter first]
@@ -995,7 +1003,7 @@ namespace eval html {
   ################################################################################
   proc exportPGN { fName selection } {
     if {$selection == "filter"} {
-      progressWindow "Scid" "Exporting games..." $::tr(Cancel) "sc_progressBar"
+      progressWindow "Scid" "Exporting games..." $::tr(Stop) "sc_progressBar"
     }
     busyCursor .
     sc_base export $selection "PGN" $fName -append 0 -starttext "" -endtext "" -comments 1 -variations 1 \
@@ -1083,6 +1091,189 @@ See $fname.log for details."
     }      
   }     
   unbusyCursor .  
+}
+
+namespace eval chess960 {}
+
+proc ::chess960::Outermost {side col} {
+	variable board	;# is array[2] of { LHS King RHS }
+
+	set index [expr {[lindex $board $side 1] ? 2 : 0}]
+	set c [lindex $board $side $index]
+
+	if {$c == 0 || ($index == 0 ? $col < $c : $c < $col)} {
+		lset board $side $index $col
+	}
+}
+
+
+proc ::chess960::Setup {str} {
+	variable board	;# is array[2] of { LHS King RHS }
+
+	set row 1
+	set col 1
+
+	foreach ch [split $str ""] {
+		if {[string is digit $ch]} {
+			incr col [expr {[scan $ch "%c"] - 48}] ;# "0" has ASCII 48
+		} else {
+			switch $ch {
+				"/" { incr row; set col 0 }
+				"R" { if {$row == 8} { Outermost 0 $col } }
+				"r" { if {$row == 1} { Outermost 1 $col } }
+				"K" { if {$row == 8} { lset board 0 1 $col } }
+				"k" { if {$row == 1} { lset board 1 1 $col } }
+			}
+
+			incr col
+		}
+	}
+
+	if {[lindex $board 0 1] == 0 && [lindex $board 1 1] == 0} {
+		return 0
+	}
+
+	return 1
+}
+
+
+proc ::chess960::MapPiece {side index ch} {
+	variable board	;# is array[2] of { LHS King RHS }
+
+	set col [lindex $board $side $index]
+	if {$col} {
+		return [format "%c" [expr {$col + ($side ? 96 : 64)}]] ;# 64 is 'A'-1; 96 is 'a'-1
+	}
+	return $ch
+}
+
+
+# Convert X-FEN to Shredder-FEN.
+#
+# This function expects a valid FEN, otherwise the result is undetermined.
+# It doesn't matter if the given FEN is already a Shredder-FEN.
+proc ::chess960::convertToShredder {fen} {
+	variable board	;# is array[2] of { LHS King RHS }
+
+	if {[llength $fen] < 3} {
+		return $fen
+	}
+
+	set board {{0 0 0} {0 0 0}}
+
+	if {![Setup [lindex $fen 0]]} {
+		return $fen
+	}
+
+	set rights ""
+
+	foreach ch [split [lindex $fen 2] ""] {
+		switch $ch {
+			"K" { append rights [MapPiece 0 2 "K"] }
+			"Q" { append rights [MapPiece 0 0 "Q"] }
+			"k" { append rights [MapPiece 1 2 "k"] }
+			"q" { append rights [MapPiece 1 0 "q"] }
+
+			default { append rights $ch }
+		}
+	}
+
+	lset fen 2 $rights
+	return $fen
+}
+
+
+# Convert Shredder-FEN to X-FEN.
+#
+# This function expects a valid FEN, otherwise the result is undetermined.
+# It doesn't matter if the given FEN is already a X-FEN.
+proc ::chess960::convertToXFEN {fen} {
+	variable board	;# is array[2] of { LHS King RHS }
+
+	if {[llength $fen] < 3} {
+		return $fen
+	}
+
+	set board {{0 0 0} {0 0 0}}
+
+	if {![Setup [lindex $fen 0]]} {
+		return $fen
+	}
+
+	set rights ""
+
+	foreach ch [split [lindex $fen 2] ""] {
+		if {[string is upper $ch]} {
+			set file [expr {[scan $ch "%c"] - 64}] ;# 64 is 'A'-1
+
+			if {$file == [lindex $board 0 0]} {
+				append rights "Q"
+			} elseif {$file == [lindex $board 0 2]} {
+				append rights "K"
+			} else {
+				append rights $ch
+			}
+		} elseif {[string is lower $ch]} {
+			set file [expr {[scan $ch "%c"] - 96}] ;# 96 is 'a'-1
+
+			if {$file == [lindex $board 1 0]} {
+				append rights "q"
+			} elseif {$file == [lindex $board 1 2]} {
+				append rights "k"
+			} else {
+				append rights $ch
+			}
+		} else {
+			append rights $ch
+		}
+	}
+
+	lset fen 2 $rights
+	return $fen
+}
+
+
+proc ::chess960::numberToFEN {number} {
+	set KRN {"NNRKR" "NRNKR" "NRKNR" "NRKRN" "RNNKR" "RNKNR" "RNKRN" "RKNNR" "RKNRN" "RKRNN"}
+	set pattern "XXXXXXXX"
+	set number [expr {$number%960}]
+
+	set r [expr {$number%4}]
+	set q [expr {$number/4}]
+	set m [expr {$r*2 + 1}]
+	set r [expr {$q%4}]
+	set q [expr {$q/4}]
+	set n [expr {$r*2}]
+	set r [expr {$q%6}]
+	set q [expr {$q/6}]
+
+	set pattern [string replace $pattern $m $m "B"]
+	set pattern [string replace $pattern $n $n "B"]
+
+	for {set i 0} {$i < 8} {incr i} {
+		set ch [string index $pattern $i]
+		if {$ch eq "X" && [incr r -1] == -1} {
+			break;
+		}
+	}
+	set pattern [string replace $pattern $i $i "Q"]
+
+	set n 0
+	set krn [lindex $KRN $q]
+	for {set i 0} {$i < 8} {incr i} {
+		set ch [string index $pattern $i]
+		if {$ch eq "X"} {
+			set pattern [string replace $pattern $i $i [string index $krn $n]]
+			incr n
+		}
+	}
+
+	append fen [string tolower $pattern]
+	append fen "/pppppppp/8/8/8/8/PPPPPPPP/"
+	append fen $pattern
+	append fen " w KQkq - 0 1"
+
+	return $fen
 }
 
 # end of misc.tcl

@@ -325,6 +325,10 @@ namespace eval sergame {
       ::sergame::sendToEngine $n "setoption name Ponder value false"
     }
 
+    if {[sc_game startBoard]} {
+      sendToEngine $n "setoption name UCI_Chess960 value true"
+    }
+
     # if will follow a specific opening line
     if {$isOpening} {
       set fields [split [lindex $openingList $chosenOpening] ":"]
@@ -368,7 +372,10 @@ namespace eval sergame {
 
     if {$::uci::uciInfo(skill) != ""} {
       # hmm - no spaces allowed in tags (Skill Level)
-      sc_game tags set -extra [list "SkillLevel \"$::uci::uciInfo(skill)\""]
+      set extraTags [sc_game tag get -last Extra]
+      set extraTagsList [split $extraTags "\n"]
+      lappend extraTagsList "SkillLevel \"$::uci::uciInfo(skill)\""
+      sc_game tags set -extra $extraTagsList
     }
 
     updateBoard -pgn
@@ -398,11 +405,15 @@ namespace eval sergame {
       ::gameclock::new $w.fclocks 2 120 0
       ::gameclock::new $w.fclocks 1 120 0
     }
-    # These are broken for flipped games. (Tacgame too)
     ::gameclock::setColor 1 white
     ::gameclock::setColor 2 black
     ::gameclock::reset 1
-    ::gameclock::start 1
+    ::gameclock::reset 2
+    if {[sc_pos side] == "white"} {
+      ::gameclock::start 1
+    } else {
+      ::gameclock::start 2
+    }
 
     set ::pause 0
 
@@ -410,6 +421,11 @@ namespace eval sergame {
       set ::pause 0
       .serGameWin.fbuttons.resume configure -state disabled
       ::uci::sendToEngine $::sergame::engine {setoption name Clear Hash}
+      if {[sc_pos side] == "white"} {
+        ::gameclock::start 1
+      } else {
+        ::gameclock::start 2
+      }
       ::sergame::engineGo
     }
     pack $w.fbuttons.resume -expand yes -fill both -padx 10 -pady 2

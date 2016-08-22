@@ -1296,6 +1296,7 @@ proc confirmReplaceMove {} {
 #   piece from the user.
 #   If the optional parameter is "-animate", the move will be animated.
 
+#   sq1 == to, sq2 == from , but squares can also be selected in reverse order
 proc addMove { sq1 sq2 {animate ""}} {
   global EMPTY
 
@@ -1317,16 +1318,49 @@ proc addMove { sq1 sq2 {animate ""}} {
     if {$k1 == "k"  &&  $k2 == "k"} {
       set nullmove 1
     } else {
-      return
-    }
+      # test/hack to see if we can translate old-style castling into 960 castling
+
+      set side [sc_pos side]
+      if {(($k1 == "k" && $k2 == ".") || ($k2 == "k" && $k1 == ".")) && [expr {abs ($sq1 - $sq2)}] == 2} {
+	  if {$k1 == "k"} {
+	    # test correct-side-to-move
+	    set king [string index $board $sq1]
+	    if {$side == "white" && $king == "k" || $side == "black" && $king == "K"} {return}
+
+	    set sign [expr {($sq2 - $sq1)/2}]
+            set sq2 [expr {$sq2 - $sign}] ; # to check neighbouring square
+            #incr sq2 till we hit a rook
+
+	    while {[string index $board $sq2] == "."} {
+	       incr sq2 $sign
+	    }
+            if {[string tolower [string index $board $sq2]] != "r"} {
+              return
+            }
+          } else {
+	    ### {$k2 == "k"}
+	    # test correct-side-to-move
+	    set king [string index $board $sq2]
+	    if {$side == "white" && $king == "k" || $side == "black" && $king == "K"} {return}
+
+	    set sign [expr {($sq1 - $sq2)/2}]
+            set sq1 [expr {$sq1 - $sign}]
+	    while {[string index $board $sq1] == "."} {
+	       incr sq1 $sign
+	    }
+            if {[string tolower [string index $board $sq1]] != "r"} {
+              return
+            }
+          }
+      } else {
+	return 
+      }
+    } 
   }
-  if {$nullmove} {
-    set char [string index [sc_game info previousMove] end]
-    if {$char == "#" || $char == "+"} {
+  if {$nullmove && [sc_pos isCheck]} {
       # dont add null move in check or mate
       tk_messageBox -type ok -message {Null Move while in Check is not allowed.} -parent .main.board -icon info
       return
-    }
   }
 
   if {[sc_pos isPromotion $sq1 $sq2] == 1} {
@@ -1873,7 +1907,7 @@ proc setTrialMode {mode {updateBoard 1}} {
     set trialMode 1
     sc_game push copy
     .main.button.trial configure -image tb_trial_on
-    if {$nullMode} {
+    if {$nullMode && ! [sc_pos isCheck]} {
       sc_move addSan null
     }
   } else {
@@ -1897,6 +1931,10 @@ proc pauseGame {args} {
   if {[winfo exists .serGameWin]} {
     .serGameWin.fbuttons.resume configure -state normal
     after cancel ::sergame::engineGo
+  }
+  catch {
+    ::gameclock::stop 1
+    ::gameclock::stop 2
   }
 }
 

@@ -3639,6 +3639,7 @@ proc updateAnalysis {{n 0} {reset 1}} {
     # proc is called for any change in board position (including new games, and simple moves)
     set nonStdStart [sc_game startBoard]
     if {$nonStdStart} {
+      sendToEngine $n "setoption name UCI_Chess960 value true"
       set analysis(startpos$n) "fen [sc_game startPos]"
     } else {
       set analysis(startpos$n) startpos

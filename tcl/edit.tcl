@@ -63,6 +63,9 @@ proc pasteFEN {} {
       set fenStr "$s1 $s2 [lrange $fenStr 2 end]"
   }
 
+  # Handle Shredder fen's HAha type castling field
+  set fenStr [::chess960::convertToXFEN $fenStr]
+
   if {[catch {sc_game startBoard $fenStr}]} {
     # Trim length, and remove newlines for error dialog
     if {[string length $fenStr] > 80} {
@@ -321,6 +324,9 @@ proc exitSetupBoard {} {
 
 proc validateFEN {fen} {
   global setupFen
+
+  # Don't worry about validating castling in chess960
+  return $fen
 
   #### Do a sanity check on castling
   #    .. helpful because illegal FENs crash engines
@@ -638,6 +644,20 @@ proc setupBoard {} {
     makeSetupFen
   } -width 10
 
+  frame $sr.b.960
+
+  label $sr.b.960.text -text "960 code"
+  entry $sr.b.960.entry -width 4 -validate all -vcmd {string is int %P}
+  pack $sr.b.960.text $sr.b.960.entry -side left
+
+  bind  $sr.b.960.entry <Return> {
+    set SP [expr [.setup.r.b.960.entry get] %% 960]
+    if {$SP == 0} {set SP 960}
+    set setupFen  [::chess960::numberToFEN $SP]
+    sc_game tags set -extra [list {Variant "Fischerandom"} "StartingPosition \"$SP\""]
+    setSetupBoardToFen
+  }
+
  # Are these bullet-proof and correct ? 
 
   button $sr.b.swap -text {Swap Colours} -command {
@@ -695,6 +715,7 @@ proc setupBoard {} {
   pack $sr.b		-side top -pady 10
   pack $sr.b.clear	-side top -padx 5 -pady 2
   pack $sr.b.initial	-side top -padx 5 -pady 2
+  pack $sr.b.960        -side top -expand yes -fill x
   pack [frame $sr.b.space -height 10] -side top
   pack $sr.b.swap	-side top -padx 5 -pady 2
   pack $sr.b.invert	-side top -padx 5 -pady 2
