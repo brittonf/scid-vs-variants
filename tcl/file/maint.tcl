@@ -505,7 +505,7 @@ proc ::maint::SetAutoloadGame {{parent .}} {
   pack $w.b.cancel $w.b.ok -side right -padx 3
 
   bind $w.f.entry <Return> "$w.b.ok invoke"
-  bind $w.f.entry <Escape> "$w.b.cancel invoke"
+  bind $w <Escape> "$w.b.cancel invoke"
   wm resizable $w 0 0
   placeWinOverParent $w $parent
   wm state $w normal
@@ -858,7 +858,7 @@ proc stripCommentsVars {arg {parent .}} {
   dialogbutton $w.f.b.go -text "[tr EditStrip] $arg" -command {
     destroy .stripCommentsVars
     set ::maint::cancelStrip 0
-    progressWindow "Scid" "Stripping $checkOption(arg)" $::tr(Cancel) ::maint::sc_progressBar
+    progressWindow "Scid" "Stripping $checkOption(arg)" $::tr(Stop) ::maint::sc_progressBar
     busyCursor .
     if {$checkOption(AllGames) == "all"} {
       set next 1
@@ -1980,9 +1980,6 @@ proc makeBaseReadOnly {{parent .} {base {}}} {
 
 # allocateRatings:
 #   Allocate player ratings to games based on the spellcheck file.
-#
-set addRatings(overwrite) 0
-set addRatings(filter) 0
 
 proc allocateRatings {{parent .}} {
   if {[catch {sc_name ratings -test 1} result]} {
@@ -1990,6 +1987,10 @@ proc allocateRatings {{parent .}} {
     return
   }
   set w .ardialog
+  if {[winfo exists $w]} {
+    raiseWin $w
+    return
+  }
   toplevel $w
   wm title $w "Allocate Ratings"
   wm withdraw $w
@@ -2018,30 +2019,28 @@ proc allocateRatings {{parent .}} {
   pack $w.g.lab $w.g.all $w.g.filter -side top
   addHorizontalRule $w
   pack [frame $w.b] -side top -fill x
-  button $w.b.ok -text OK \
-      -command "catch {grab release $w}; destroy $w; doAllocateRatings"
-  button $w.b.cancel -text $::tr(Cancel) \
-      -command "catch {grab release $w}; destroy $w"
+  dialogbutton $w.b.ok -text OK -command "destroy $w; doAllocateRatings $parent"
+  dialogbutton $w.b.cancel -text $::tr(Cancel) -command "destroy $w"
   pack $w.b.cancel $w.b.ok -side right -padx 3 -pady 3
+  bind $w <F1> {helpWindow Maintenance Ratings}
+  bind $w <Escape> "$w.b.cancel invoke"
 
   placeWinOverParent $w .maintWin
   wm state $w normal
-
-  catch {grab $w}
-  focus $w.b.ok
 }
 
-proc doAllocateRatings {} {
+proc doAllocateRatings {parent} {
   global addRatings
   if {[catch {sc_name ratings -test 1} result]} {
-    tk_messageBox -type ok -icon info -parent . -title "Scid" -message $result
+    tk_messageBox -type ok -icon info -parent $parent -title "Scid" -message $result
     return
   }
   progressWindow "Scid" "Adding Elo ratings..."
   busyCursor .
   if {[catch {sc_name ratings -change $addRatings(overwrite) -filter $addRatings(filter)} result]} {
     closeProgressWindow
-    tk_messageBox -type ok -icon warning -parent . \
+    raiseWin $parent
+    tk_messageBox -type ok -icon warning -parent $parent \
         -title "Scid" -message $result
   } else {
     closeProgressWindow
@@ -2055,7 +2054,8 @@ proc doAllocateRatings {} {
     }
     ::windows::gamelist::Refresh
 
-    tk_messageBox -type ok -icon info -parent . \
+    raiseWin $parent
+    tk_messageBox -type ok -icon info -parent $parent \
         -title "Scid" -message [subst $::tr(AddedRatings)]
   }
   unbusyCursor .
@@ -2252,7 +2252,7 @@ proc doStripTags {tag} {
   set result [tk_messageBox -title "Scid" -parent .striptags \
       -icon question -type yesno -message $msg]
   if {$result == "no"} { return 0 }
-  progressWindow "Scid" "Removing the PGN tag $tag." $::tr(Cancel) "sc_progressBar"
+  progressWindow "Scid" "Removing the PGN tag $tag." $::tr(Stop) "sc_progressBar"
   busyCursor .
   set err [catch {sc_base tag strip $tag $checkOption(AllGames)} result]
   unbusyCursor .

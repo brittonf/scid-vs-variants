@@ -708,9 +708,9 @@ static const uint ELO_FIRST_NINEMONTHS = 2012;
 
 static const uint ELO_MONTH_TO_NINEMONTHS[13] = {
     0,          // Unknown month
-    0, 0, 1, 2, // Jan, Feb // Mar, Apr
-    3, 3, 4, 5, // May, Jun // Jul, Aug
-    6, 6, 7, 8  // Sep, Oct // Nov, Dec
+    0, 0, 1, 1, // Jan, Feb // Mar, Apr
+    2, 2, 3, 4, // May, Jun // Jul, Aug
+    5, 6, 7, 8  // Sep, Oct // Nov, Dec
 };
 
 static const uint ELO_FIRST_MONTHLY_YEAR = 2013;

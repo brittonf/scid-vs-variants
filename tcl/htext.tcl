@@ -607,14 +607,10 @@ proc openURL {url} {
     #  catch {exec /bin/sh -c "firefox '$url'" &}
     #}
     
-    # This implementation is more similar to other platforms
-    # This will work with other browsers if the user has set 
-    # them as their preferred and fall back to firefox if not
-      
-    if {[catch {exec /bin/sh -c "xdg-open '$url'" &}]} {
-	# Then a specific one if node preferred
-	catch {exec /bin/sh -c "firefox '$url'" &}
-    }
+    # This implementation ... seems broke to me :( S.A.
+    # if {[catch {exec /bin/sh -c "xdg-open '$url'" &}]} 
+
+    catch {exec /bin/sh -c "firefox '$url'" &}
   }
   unbusyCursor .
 }

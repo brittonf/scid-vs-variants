@@ -268,6 +268,8 @@ menuText U OptionsFics "FICS" 0
 menuText U OptionsFicsAuto "Promover sempre a Dama" 0
 menuText U OptionsFicsColour "Cor do Texto" 0
 menuText U OptionsFicsSize "Tamanho do Tabuleiro" 0
+# ====== TODO To be translated ======
+menuText U OptionsFicsButtons "User Buttons" 0
 menuText U OptionsFicsCommands "Comandos de Início" 0
 menuText U OptionsFicsNoRes "Ocultar Resultados" 0
 menuText U OptionsFicsNoReq "Ocultar Pedidos" 0

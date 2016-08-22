@@ -373,9 +373,14 @@ StrTree<C>::MakeTree ()
             Root[i] = NULL;
         } else {
             Root[i] = MakeSubTree (TreeSize[i], 1);
-            // Assert that this tree has nodes that start with the
-            // correct character:
-            ASSERT ((byte)(Root[i]->name[0]) == i);
+
+	    if ((byte)(Root[i]->name[0]) != i) {
+	        // This can happen with newer mainline Scid versions, in this case
+	        // the namebase is denormalized. Instead of terminating with an
+	        // assertion we will print a warning, this is more kindly, because
+	        // Scid vs PC can handle denormalized namebases.
+	        fprintf(stderr, "warning: namebase is denormalized\n");
+	    }
         }
     }
     First = Last = Iterator = NULL;

@@ -300,6 +300,8 @@ menuText G OptionsFicsColour "Χρώμα Κειμένου" 10
 # ====== TODO To be translated ======
 menuText G OptionsFicsSize "Board Size" 0
 # ====== TODO To be translated ======
+menuText G OptionsFicsButtons "User Buttons" 0
+# ====== TODO To be translated ======
 menuText G OptionsFicsCommands "Init Commands" 0
 menuText G OptionsFicsNoRes "Χωρίς Αποτελέσματα" 3
 menuText G OptionsFicsNoReq "Χωρίς Αιτήματα" 9

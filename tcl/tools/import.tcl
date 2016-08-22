@@ -106,9 +106,9 @@ proc importPgnGame {} {
   bind $w <F1> { helpWindow Import }
   bind $w <Escape> { .importWin.b.cancel invoke }
   bind $edit.text <Control-a> "$edit.text tag add sel 0.0 end-1c ; break"
-  bind $edit.text <Control-z> "catch {$edit.text edit undo}"
-  bind $edit.text <Control-y> "catch {$edit.text edit redo}"
-  bind $edit.text <Control-r> "catch {$edit.text edit redo}"
+  bind $edit.text <Control-z> "catch {$edit.text edit undo} ; break"
+  bind $edit.text <Control-y> "catch {$edit.text edit redo} ; break"
+  bind $edit.text <Control-r> "catch {$edit.text edit redo} ; break"
 
   # The usual Control-c Control-x Control-p bindings work automatically
   # wm minsize $w 50 5
@@ -123,7 +123,7 @@ proc importPgnGame {} {
   placeWinOverParent $w .
   wm state $w normal
   bind $w.pane.err.text <FocusIn> "focus $w.pane.edit.text"
-  bind $w.pane.err.text <Control-z> "catch {$w.pane.edit.text edit undo}"
+  bind $w.pane.err.text <Control-z> "catch {$w.pane.edit.text edit undo} ; break"
 }
 
 proc importVar {} {

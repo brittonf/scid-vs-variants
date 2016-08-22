@@ -273,6 +273,8 @@ menuText R OptionsFics "Сервер FICS" 0 {Free Chess Internet Server}
 menuText R OptionsFicsAuto "Автовыдвижение ферзя" 0
 menuText R OptionsFicsColour "Цвет текста" 0
 menuText R OptionsFicsSize "Размер доски" 0
+# ====== TODO To be translated ======
+menuText R OptionsFicsButtons "User Buttons" 0
 menuText R OptionsFicsCommands "Команды инициализации" 0
 menuText R OptionsFicsNoRes "Без результатов" 0
 menuText R OptionsFicsNoReq "Без запросов" 0

@@ -142,15 +142,15 @@ proc ::commenteditor::Open {} {
   bind $w.cf.text <FocusOut> ::commenteditor::storeComment
   bind $w.cf.text <Control-Return> "$w.b.ok invoke ; break"
   bind $w.nf.tf.text <FocusOut> ::commenteditor::storeComment
-  bind $w.cf.text <Control-a> {.commentWin.cf.text tag add sel 0.0 end-1c ; break}
   bind $w <Control-Left>  {::commenteditor::storeComment; ::move::Back}
   bind $w <Control-Right> {::commenteditor::storeComment; ::move::Forward}
   bind $w <Control-Home> {::commenteditor::storeComment; ::move::Start}
   bind $w <Control-End>  {::commenteditor::storeComment; ::move::End}
   bindWheeltoFont $w
 
-  bind $w.cf.text <Control-z> {catch {.commentWin.cf.text edit undo} ; break}; # seems automatic anyway
-  bind $w.cf.text <Control-y> {catch {.commentWin.cf.text edit redo} ; break}
+  bind $w.cf.text <Control-a> {.commentWin.cf.text tag add sel 0.0 end-1c ; break}
+  bind $w.cf.text <Control-z> {catch {.commentWin.cf.text edit undo} ; break}; # Control-z is default text binding anyway
+  bind $w.cf.text <Control-y> {catch {.commentWin.cf.text edit redo} ; break}; # but the others are not
   bind $w.cf.text <Control-r> {catch {.commentWin.cf.text edit redo} ; break}
 
   pack $w.cf -side top -padx 5 -expand 1 -fill both

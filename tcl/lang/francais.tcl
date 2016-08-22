@@ -273,6 +273,8 @@ menuText F OptionsFicsAuto "Autopromote Reine" 0
 menuText F OptionsFicsColour "Couleur du texte" 0
 menuText F OptionsFicsSize "Taille de l'échiquier" 0
 # ====== TODO To be translated ======
+menuText F OptionsFicsButtons "User Buttons" 0
+# ====== TODO To be translated ======
 menuText F OptionsFicsCommands "Init Commands" 0
 menuText F OptionsFicsNoRes "Sans résultats" 0
 menuText F OptionsFicsNoReq "Sans requêtes" 0

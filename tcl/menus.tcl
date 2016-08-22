@@ -892,7 +892,7 @@ $m add command -label OptionsSave -command {
     comp(rounds) comp(showclock) comp(debug) comp(animate) comp(firstonly) comp(ponder) comp(showscores)
     ::tools::graphs::filter::type  ::tools::graphs::absfilter::type ::tools::graphs::showpoints
     maintFlag useGraphFigurine photosMinimized bookmarks(gamehistory) playerInfoHistory
-    glistSize glexport glistColOrder glistColWidth glistColAnchor} {
+    glistSize glexport glistColOrder glistColWidth glistColAnchor addRatings(overwrite) addRatings(filter)} {
 
       puts $optionF "set $i [list [set $i]]"
 
@@ -955,7 +955,7 @@ $m add command -label OptionsSave -command {
     puts $optionF ""
 
     # save FICS config
-    foreach i { use_timeseal timeseal_exec port_fics port_timeseal login password consolebg consolefg chanoff shouts server_ip consolebg consolefg autopromote autoraise size sound no_results no_requests server init_commands show_buttons allow_premove} {
+    foreach i { use_timeseal timeseal_exec port_fics port_timeseal login password consolebg consolefg chanoff shouts server_ip consolebg consolefg autopromote autoraise size sound no_results no_requests server init_commands show_buttons allow_premove user_buttons user_commands} {
       puts $optionF "set ::fics::$i [list [set ::fics::$i]]"
     }
     foreach i [lsort [array names ::fics::findopponent]] {
@@ -1099,6 +1099,7 @@ $m add command     -label OptionsFonts        -command {
   set fontOptions(temp) [FontDialog Fixed]
   if {$fontOptions(temp) != ""} { set fontOptions(Fixed) $fontOptions(temp) }
 }
+$m add command     -label OptionsFicsButtons  -command ::fics::editUserButtons
 $m add command     -label OptionsFicsCommands -command ::fics::editInitCommands
 $m add cascade     -label OptionsFicsSize     -menu $m.size
 $m add separator
@@ -1673,7 +1674,7 @@ proc setLanguageMenus {{lang ""}} {
         OptionsMoves$tag $lang
   }
 
-  foreach tag {OptionsWindowsRaise OptionsFicsAuto OptionsSounds OptionsFicsColour OptionsColour OptionsFonts OptionsFicsCommands OptionsFicsSize OptionsFicsNoRes OptionsFicsNoReq OptionsFicsPremove} {
+  foreach tag {OptionsWindowsRaise OptionsFicsAuto OptionsSounds OptionsFicsColour OptionsColour OptionsFonts OptionsFicsButtons OptionsFicsCommands OptionsFicsSize OptionsFicsNoRes OptionsFicsNoReq OptionsFicsPremove} {
     configMenuText .menu.options.fics [tr $tag $oldLang] $tag $lang
   }
 
