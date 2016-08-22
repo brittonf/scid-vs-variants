@@ -295,6 +295,8 @@ menuText D OptionsFics "FICS" 0
 menuText D OptionsFicsAuto "Autopromote Königin" 0
 menuText D OptionsFicsColour "Textfarbe" 0
 menuText D OptionsFicsSize "Brettgröße" 0
+# ====== TODO To be translated ======
+menuText D OptionsFicsButtons "User Buttons" 0
 menuText D OptionsFicsCommands "Startbefehle" 0
 menuText D OptionsFicsNoRes "Keine Ergebnisse" 0
 menuText D OptionsFicsNoReq "Keine Anfragen" 0

@@ -317,6 +317,8 @@ menuText O OptionsFicsColour "Text Colour" 0
 # ====== TODO To be translated ======
 menuText O OptionsFicsSize "Board Size" 0
 # ====== TODO To be translated ======
+menuText O OptionsFicsButtons "User Buttons" 0
+# ====== TODO To be translated ======
 menuText O OptionsFicsCommands "Init Commands" 0
 # ====== TODO To be translated ======
 menuText O OptionsFicsNoRes "No Results" 0

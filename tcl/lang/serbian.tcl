@@ -316,6 +316,8 @@ menuText Y OptionsFicsColour "Text Colour" 0
 # ====== TODO To be translated ======
 menuText Y OptionsFicsSize "Board Size" 0
 # ====== TODO To be translated ======
+menuText Y OptionsFicsButtons "User Buttons" 0
+# ====== TODO To be translated ======
 menuText Y OptionsFicsCommands "Init Commands" 0
 # ====== TODO To be translated ======
 menuText Y OptionsFicsNoRes "No Results" 0

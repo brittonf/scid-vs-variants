@@ -474,7 +474,12 @@ namespace eval tacgame {
     ::gameclock::setColor 1 white
     ::gameclock::setColor 2 black
     ::gameclock::reset 1
-    ::gameclock::start 1
+    ::gameclock::reset 2
+    if {[sc_pos side] == "white"} {
+      ::gameclock::start 1
+    } else {
+      ::gameclock::start 2
+    }
 
     ### "Resume" restarts paused computer (while player moves forward/back in history) S.A
 
@@ -483,6 +488,11 @@ namespace eval tacgame {
     button $w.fbuttons.resume -state disabled -textvar ::tr(Resume) -command {
       set ::pause 0
       .coachWin.fbuttons.resume configure -state disabled
+      if {[sc_pos side] == "white"} {
+	::gameclock::start 1
+      } else {
+	::gameclock::start 2
+      }
       ::tacgame::phalanxGo
     }
     pack $w.fbuttons.resume -expand yes -fill both -padx 10 -pady 2
@@ -512,10 +522,15 @@ namespace eval tacgame {
 
       ::gameclock::reset 1
       ::gameclock::reset 2
+      ::gameclock::draw 1
       ::gameclock::draw 2
-      ::gameclock::start 1
       ::tacgame::resetValues
       updateBoard -pgn
+	if {[sc_pos side] == "white"} {
+	  ::gameclock::start 1
+	} else {
+	  ::gameclock::start 2
+	}
       ::tacgame::updateAnalysisText
       ::tacgame::phalanxGo
     }
@@ -831,8 +846,13 @@ namespace eval tacgame {
       return
     }
 
-    ::gameclock::stop 1
-    ::gameclock::start 2
+    if {[::board::opponentColor] == "black"} {
+      ::gameclock::stop 1
+      ::gameclock::start 2
+    } else {
+      ::gameclock::stop 2
+      ::gameclock::start 1
+    }
     checkRepetition
 
     # make a move corresponding to a specific opening, (it is Phalanx's turn)
@@ -851,8 +871,13 @@ namespace eval tacgame {
           if {$answer == no} {
             sc_move back 1
             updateBoard -pgn
-            ::gameclock::stop 2
-            ::gameclock::start 1
+	    if {[sc_pos side] == "white"} {
+	      ::gameclock::stop 2
+	      ::gameclock::start 1
+            } else {
+	      ::gameclock::stop 1
+	      ::gameclock::start 2
+            }
             after 1000 ::tacgame::phalanxGo
             return
           }  else  {
@@ -890,8 +915,13 @@ namespace eval tacgame {
           
           ::utils::sound::AnnounceNewMove $move
           updateBoard -pgn -animate
-          ::gameclock::stop 2
-          ::gameclock::start 1
+	  if {[sc_pos side] == "white"} {
+	    ::gameclock::stop 2
+	    ::gameclock::start 1
+          } else {
+	    ::gameclock::stop 1
+	    ::gameclock::start 2
+          }
           checkRepetition
           after 1000 ::tacgame::phalanxGo
           return
@@ -992,9 +1022,13 @@ namespace eval tacgame {
     ::tacgame::startAnalyze
     ::utils::sound::AnnounceNewMove $move
     updateBoard -pgn -animate
-
-    ::gameclock::stop 2
-    ::gameclock::start 1
+    if { [::board::opponentColor] == "black" } {
+      ::gameclock::stop 2
+      ::gameclock::start 1
+    } else {
+      ::gameclock::stop 1
+      ::gameclock::start 2
+    }
     checkRepetition
 
     if { $resignCount > 3 && ! $::tacgame::resignShown } {

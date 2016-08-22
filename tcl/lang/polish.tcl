@@ -276,6 +276,8 @@ menuText P OptionsFicsColour "Kolor tekstu" 0
 # ====== TODO To be translated ======
 menuText P OptionsFicsSize "Board Size" 0
 # ====== TODO To be translated ======
+menuText P OptionsFicsButtons "User Buttons" 0
+# ====== TODO To be translated ======
 menuText P OptionsFicsCommands "Init Commands" 0
 menuText P OptionsFicsNoRes "Bez rezultatu" 0
 menuText P OptionsFicsNoReq "Bez wyzwania" 0

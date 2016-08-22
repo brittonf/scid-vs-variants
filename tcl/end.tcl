@@ -569,7 +569,7 @@ proc exportGames {selection exportType {fName {}}} {
   set initialDir(pgn) [file dirname $fName]
 
   if {$exportFilter} {
-    progressWindow "Scid" "Exporting games..." $::tr(Cancel) "sc_progressBar"
+    progressWindow "Scid" "Exporting games..." $::tr(Stop) "sc_progressBar"
   }
  # tk_messageBox -title "Debug" -type ok -icon error -message "Export Type $exportType" 
   busyCursor .

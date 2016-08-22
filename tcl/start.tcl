@@ -45,10 +45,10 @@ if {0} {
 
 if {![catch {tk windowingsystem} wsystem] && $wsystem == "aqua"} {
   set macOS 1
-  set scidName {Scid vs. Mac}
+  set scidName {Scid vs. Mac 360}
 } else {
   set macOS 0
-  set scidName {Scid vs. PC}
+  set scidName {Scid vs. 360}
 }
 
 # See if we're inside a Mac .app bundle.  This duplcates part of the command-line
@@ -479,6 +479,19 @@ proc initFICSDefaults {} {
     set sound 0
     set no_results 0
     set no_requests 0
+
+    proc initUserButtons {} {
+      set ::fics::user_buttons {FICSInfo FICSOpponent Abort}
+      set ::fics::user_commands {
+	{::fics::writechan finger ; ::fics::writechan "inchannel $::fics::reallogin"}
+	{if {$::fics::opponent != {}} {
+	  ::fics::writechan "finger $::fics::opponent"
+	}}
+	{::fics::writechan abort}
+      }
+    }
+
+    initUserButtons
     # these are duplicated in fics::editInitCommands
     set init_commands [list \
       {set gin  0} \
@@ -1464,6 +1477,9 @@ set scidConfigFiles(reports)     reports.dat
 set scidConfigFiles(optrainer)   optrainer.dat
 
 set ecoFile {}
+
+set addRatings(overwrite) 0
+set addRatings(filter)    1
 
 # scidConfigFile:
 #   Returns the full path and name of a Scid configuration file,

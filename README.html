@@ -282,6 +282,8 @@ about the Fics and Tactical Game features in the Scid Help menus</EM>.</P>
 
 <P>
 <UL>
+<LI> The TCL sound package, Snack, needs fixing and a maintainer.
+</LI>
 <LI> Openseal is an open source version of FICS Timeseal. It needs some
 rewriting to work with Scid, though it is a small program.
 </LI>
@@ -292,7 +294,6 @@ if {string match "*Starting FICS session*" $line]} {
 The two servers do have many similarities i think, and examining
 xboard's "backend.c" (or some other client) for "FICS" particularities
 <LI> Translation updates are always welcome
-<LI> The TCL sound package, Snack, needs a maintainer.
 <LI> Fischer Chess (Chess 960) is not really implemented.
 The latest code is in ScidvsPC's source patches/chess960.patch , with code from
 the (now-defunct) http://www.wtfai.me.uk/scid960.html , but it is only a hack.
@@ -321,7 +322,6 @@ work may not be too hard.  https://github.com/sshivaji/ctgexporter</LI>
 </LI>
 </LI>
 </LI>
-</LI>
 </UL>
 </P>
 <H2><A NAME="ss6.4">6.4</A> <A HREF="#toc6.4">known issues </A>
@@ -329,6 +329,7 @@ work may not be too hard.  https://github.com/sshivaji/ctgexporter</LI>
 
 <P>
 <UL>
+<LI> Linux sound playback is buggy.</LI>
 <LI> Tcl/Tk-8.5.10 is buggy.</LI>
 <LI> OS X docked mode has some issues due to it's poor Tcl/Tk.</LI>
 <LI> <B>Focus Issues</B>. Kde users can allow Tcl apps to properly raise themselves by

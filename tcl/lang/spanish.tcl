@@ -290,6 +290,8 @@ menuText S OptionsFics "FICS" 0
 menuText S OptionsFicsAuto "Autopromoción Reina" 0
 menuText S OptionsFicsColour "Color del texto" 0
 menuText S OptionsFicsSize "Tamaño del Tablero" 0
+# ====== TODO To be translated ======
+menuText S OptionsFicsButtons "User Buttons" 0
 menuText S OptionsFicsCommands "Comandos iniciales" 0
 menuText S OptionsFicsNoRes "Sin resultados" 0
 menuText S OptionsFicsNoReq "Sin respuesta" 0

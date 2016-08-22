@@ -1146,7 +1146,7 @@ proc copyFilter {frombaseNum tobaseNum} {
 
   # If copying to the clipbase, do not bother asking for confirmation:
   if {!$::windows::switcher::confirmCopy || $tobaseNum == [sc_info clipbase]} {
-    progressWindow "Scid" "$::tr(CopyGames)..." $::tr(Cancel) "sc_progressBar"
+    progressWindow "Scid" "$::tr(CopyGames)..." $::tr(Stop) "sc_progressBar"
     busyCursor .
     set copyErr [catch {sc_filter copy $frombaseNum $tobaseNum} result]
     unbusyCursor .
@@ -1164,7 +1164,7 @@ proc copyFilter {frombaseNum tobaseNum} {
   wm title $w "Scid: $::tr(CopyGames)"
   label $w.text -text [subst $::tr(CopyConfirm)] -justify left
   frame $w.b
-  dialogbutton $w.b.go -text $::tr(CopyGames) -command "
+  dialogbutton $w.b.go -text $::tr(FinderCtxCopy) -command "
     busyCursor .
     $w.b.cancel configure -command \"sc_progressBar\"
     $w.b.cancel configure -text $::tr(Stop)

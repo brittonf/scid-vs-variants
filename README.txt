@@ -365,6 +365,8 @@
   6.3.  todo
 
 
+  o  The TCL sound package, Snack, needs fixing and a maintainer.
+
   o  Openseal is an open source version of FICS Timeseal. It needs some
      rewriting to work with Scid, though it is a small program.
 
@@ -376,8 +378,6 @@
      "backend.c" (or some other client) for "FICS" particularities
 
   o  Translation updates are always welcome
-
-  o  The TCL sound package, Snack, needs a maintainer.
 
   o  Fischer Chess (Chess 960) is not really implemented.  The latest
      code is in ScidvsPC's source patches/chess960.patch , with code
@@ -409,6 +409,8 @@
 
   6.4.  known issues
 
+
+  o  Linux sound playback is buggy.
 
   o  Tcl/Tk-8.5.10 is buggy.
 

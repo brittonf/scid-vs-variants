@@ -92,7 +92,7 @@ nextState(State current, unsigned char c)
 
 
 #define _ -1
-static char const CP850Weight[256] =
+static int8_t const CP850Weight[256] =
 {
   0, 0, 0, 0, 0, 0, 0, 0, // 00 ... 07
   0, 0, 0, 0, 0, 0, 0, 0, // 08 ... 0f
@@ -129,7 +129,10 @@ static char const CP850Weight[256] =
   0, 0, 0, 0, 0, 0, 0, 0, // f8 ... ff
 };
 
-static char const CP1252Weight[256] =
+// NOTE: ChessBase is using code point 0x90,
+// although this code point does not belong to cp1252.
+// Later this character (U+2017) will be mapped correctly.
+static int8_t const CP1252Weight[256] =
 {
   0, 0, 0, 0, 0, 0, 0, 0, // 00 ... 07
   0, 0, 0, 0, 0, 0, 0, 0, // 08 ... 0f
@@ -150,7 +153,7 @@ static char const CP1252Weight[256] =
 
   1, _, 0, 0, 0, 0, 0, 0, // 80 ... 87
   0, 0, 1, 0, 1, _, 0, _, // 88 ... 8f
-  _, 0, 0, 0, 0, 0, 0, 0, // 90 ... 97
+  1, 0, 0, 0, 0, 0, 0, 0, // 90 ... 97
   0, 0, 1, 0, 1, _, 1, 0, // 98 ... 9f
   0, 1, 5, 5, 5, 5, 5, 5, // a0 ... a7
   0, 0, 0, 0, 0, 0, 0, 0, // a8 ... af
@@ -166,7 +169,7 @@ static char const CP1252Weight[256] =
   3, 1, 3, 1, 5, 1, 0, 0, // f8 ... ff
 };
 
-static char const Latin1Weight[256] =
+static int8_t const Latin1Weight[256] =
 {
   0, 0, 0, 0, 0, 0, 0, 0, // 00 ... 07
   0, 0, 0, 0, 0, 0, 0, 0, // 08 ... 0f
@@ -616,21 +619,12 @@ CharsetConverter::isConvertibleToLatin1(char const* str)
       unsigned code     = ::utf8ToUnicode(str, charLen);
 
       if (::findConversion(code))
-      {
         str += charLen;
-      }
-      else
-      {
-        if (c < 0xc2 || 0xc3 < c)
-          return false;
+      else if (0x7f <= code && code <= 0x9f)
+        return false;
 
-        c = str[1];
-
-        if (c < 0x80 || 0xbf < c)
-          return false;
-      }
-
-      str += charLen;
+      ASSERT(charLen == 2);
+      str += 2;
     }
     else
     {
@@ -710,6 +704,8 @@ CharsetConverter::validateLatin1(char const* str, unsigned len)
 {
   ASSERT(str);
 
+  // NOTE: it is common that Latin-1 contains 0x00-0x1f, although this is not standard.
+
   for (char const* e = str + len; str < e; ++str)
   {
     unsigned char c = *str;
@@ -771,7 +767,7 @@ CharsetConverter::makeValid(std::string& str, char const* replacement)
 
 
 int
-CharsetConverter::detect(char const* s, unsigned len, char const* table)
+CharsetConverter::detect(char const* s, unsigned len, int8_t const* table)
 {
   int sum = 0;
 
@@ -779,7 +775,7 @@ CharsetConverter::detect(char const* s, unsigned len, char const* table)
   {
     unsigned char c = *s;
 
-    char weight = table[c];
+    int8_t weight = table[c];
 
     if (weight < 0)
       return -1;
@@ -862,11 +858,12 @@ CharsetConverter::cp1252ToUTF8(std::string const& in, std::string& out)
     {
       if (c < 0xa8)
       {
+        // NOTE: this table maps the special ChessBase code 0x90 to 0x21bb.
         static unsigned const CodeTable[128] =
         {
           0x20ac, 0xfffd, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, // 80 ... 87
           0x02c6, 0x2030, 0x0160, 0x2039, 0x0152, 0xfffd, 0x017d, 0xfffd, // 88 ... 8f
-          0xfffd, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, // 90 ... 97
+          0x21bb, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, // 90 ... 97
           0x02dc, 0x2122, 0x0161, 0x203a, 0x0153, 0xfffd, 0x017e, 0x0178, // 98 ... 9f
           0x02a0, 0x00a1, 0x2654, 0x2655, 0x2658, 0x2657, 0x2656, 0x2659, // a0 ... a7
         };

@@ -16,6 +16,7 @@
 #define SCID_CHARSETCONVERTER_H
 
 #include "charsetdetector.h"
+#include <stdint.h>
 #include <string>
 #include <map>
 
@@ -187,7 +188,7 @@ private:
 
   bool doConversion(Buffer& text);
 
-  static int detect(char const* s, unsigned len, char const* table);
+  static int detect(char const* s, unsigned len, int8_t const* table);
 
   Codec     m_system;
   Codec     m_wanted;

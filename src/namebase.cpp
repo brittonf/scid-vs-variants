@@ -256,6 +256,7 @@ NameBase::ReadNameFile (const char * suffix)
 #else
                 fclose (FilePtr);
 #endif
+                FilePtr = NULL;
                 return ERROR_Corrupt;
             }
             node->data.id = id;

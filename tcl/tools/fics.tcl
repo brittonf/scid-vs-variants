@@ -131,6 +131,7 @@ namespace eval fics {
     button $w.button.defaults -textvar tr(Defaults) -command {
       if {[tk_dialog .fics_dialog Abort "This will reset all FICS options. Do you wish to continue ?" question {} [tr Yes] [tr No]] == 0} {
 	initFICSDefaults
+	raiseWin .ficsConfig
       }
     }
 
@@ -421,24 +422,24 @@ namespace eval fics {
     grid $w.bottom.buttons.ping   -column 2 -row $row
 
     incr row
-    button $w.bottom.buttons.info  -textvar tr(FICSInfo) -command {
-      ::fics::writechan finger
-      ::fics::writechan "inchannel $::fics::reallogin"
-      # ::fics::writechan history
-    }
-    button $w.bottom.buttons.info2 -textvar tr(FICSOpponent) -command {
-      if {$::fics::opponent != {}} {
-	::fics::writechan "finger $::fics::opponent"
-      }
-    }
 
-    button $w.bottom.buttons.abort  -textvar tr(Abort) -command {::fics::writechan abort}
+    button $w.bottom.buttons.user0
+    button $w.bottom.buttons.user1 
+    button $w.bottom.buttons.user2
+
+    foreach i {0 1 2} {
+      set j [lindex $::fics::user_buttons $i]
+      if {[lsearch -exact {FICSInfo FICSOpponent Abort} $j] > -1} {
+        set j [tr $j]
+      }
+      $w.bottom.buttons.user$i configure -text $j -command [lindex $::fics::user_commands $i]
+    }
 
     set ::fics::graph(on) 0
 
-    grid $w.bottom.buttons.info  -column 0 -row $row -sticky ew -padx 3 -pady 2
-    grid $w.bottom.buttons.info2 -column 1 -row $row -sticky ew -padx 3 -pady 2
-    grid $w.bottom.buttons.abort -column 2 -row $row -sticky ew -padx 3 -pady 2
+    grid $w.bottom.buttons.user0 -column 0 -row $row -sticky ew -padx 3 -pady 2
+    grid $w.bottom.buttons.user1 -column 1 -row $row -sticky ew -padx 3 -pady 2
+    grid $w.bottom.buttons.user2 -column 2 -row $row -sticky ew -padx 3 -pady 2
 
     incr row
     button $w.bottom.buttons.draw    -textvar tr(FICSDraw) -command {::fics::writechan draw}
@@ -2156,6 +2157,7 @@ if {[lindex $line 0] != {Still in progress}} {
       wm title $::dot_w "$::scidName: $white - $black (game $game: $::fics::timecontrol)"
       updateBoard -pgn -animate
     } else {
+puts "HMMMM \n$fen \n[sc_pos fen]"
       ### Game out of sync, probably due to player takeback request (or opponent take back 2).
       ### But also used to load observed games
       # After player takeback, game gets reconstructed, comments are zeroed. Opponents takeback is handled better elsewhere.
@@ -2277,7 +2279,7 @@ if {[lindex $line 0] != {Still in progress}} {
 
     ### Repacking can make the console suspend, so seek to console end 
     update
-    .fics.console.text yview moveto 1
+    catch {.fics.console.text yview moveto 1} ; # in case we quit fics already
   }
 
   proc updateAds { } {
@@ -2563,12 +2565,18 @@ if {[lindex $line 0] != {Still in progress}} {
 
   proc checkAdd {} {
     if {$::fics::playing == 1 && [winfo exists .fics]}  {
-      set moveUCI [sc_game info previousMoveUCI]
-      if { [ string length $moveUCI ] == 5 } {
-        set promoLetter [ string tolower [ string index $moveUCI end ] ]
-        ::fics::writechan "promote $promoLetter"
+      # If just castled, send San move
+      set previousMove [sc_game info previousMove]
+      if {[string match O-O* $previousMove]} {
+	::fics::writechan $previousMove
+      } else {
+	set moveUCI [sc_game info previousMoveUCI]
+	if { [ string length $moveUCI ] == 5 } {
+	  set promoLetter [ string tolower [ string index $moveUCI end ] ]
+	  ::fics::writechan "promote $promoLetter"
+	}
+	::fics::writechan [string range $moveUCI 0 3 ]
       }
-      ::fics::writechan [string range $moveUCI 0 3 ]
 
       ### Stop clock
       if {[sc_pos side] == "white"} {
@@ -2602,6 +2610,75 @@ if {[lindex $line 0] != {Still in progress}} {
 	.analysisWin$i.b.startStop configure -state normal
       }
     }
+  }
+
+  proc editUserButtons {} {
+    set w .editUserButtons
+
+    if {[winfo exists $w]} {
+      raiseWin $w
+      return
+    }
+    toplevel $w
+    wm state $w withdrawn
+    wm title $w "FICS: [tr OptionsFicsButtons]"
+
+    foreach i {0 1 2} {
+      set f $w.f$i
+      frame $f
+      entry $f.button -width 8
+      entry $f.command -width 30
+      $f.button insert 0 [lindex $::fics::user_buttons $i]
+      $f.command insert 0 [lindex $::fics::user_commands $i]
+      pack $f -side top -fill both -expand yes
+      pack $f.button $f.command -side left -fill x -expand yes
+    }
+
+    frame $w.b
+    pack $w.b -side bottom 
+
+    dialogbutton $w.b.ok -text OK -command {
+      set ::fics::user_buttons {}
+      set ::fics::user_commands {}
+      foreach i {0 1 2} {
+	set f .editUserButtons.f$i
+	lappend ::fics::user_buttons [$f.button get]
+	lappend ::fics::user_commands [$f.command get]
+	if {[winfo exists .fics.bottom.buttons.user$i]} {
+          set b [string trim [$f.button get]]
+	  if {[lsearch -exact {FICSInfo FICSOpponent Abort} $b] > -1} {
+            set b [tr $b]
+          }
+	  .fics.bottom.buttons.user$i configure -text $b -command [$f.command get]
+        }
+      }
+      destroy .editUserButtons
+    }
+
+    dialogbutton $w.b.defaults -text $::tr(Defaults) -command {
+      ::fics::initUserButtons
+      foreach i {0 1 2} { 
+	set w .editUserButtons
+	set f $w.f$i
+	$f.button delete 0 end
+	$f.command delete 0 end
+	$f.button insert 0 [lindex $::fics::user_buttons $i]
+	$f.command insert 0 [lindex $::fics::user_commands $i]
+      } 
+    }
+
+    dialogbutton $w.b.cancel -text $::tr(Cancel) -command "destroy $w"
+    pack $w.b.cancel $w.b.defaults $w.b.ok -side right -padx 10 -pady 5
+
+    bind $w <Escape> "destroy $w"
+    update
+    if {[winfo exists .fics]} {
+      placeWinOverParent $w .fics
+    } else {
+      placeWinOverParent $w .
+    }
+    wm state $w normal
+    update
   }
 
   proc editInitCommands {} {
