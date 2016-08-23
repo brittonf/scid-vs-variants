@@ -316,8 +316,8 @@ proc ::file::finder::backup { f } {
   set r [file rootname $f]
   set d [clock format [clock seconds] -format "-%Y.%m.%d-%H%M" ]
   set ext [string tolower [file extension $f]]
-  if { $ext == ".si4" } {
-    if { [catch { file copy "$r.sg4" "$r$d.sg4" ; file copy "$r.sn4" "$r$d.sn4" } err ] } {
+  if { $ext == ".si960" } {
+    if { [catch { file copy "$r.sg960" "$r$d.sg960" ; file copy "$r.sn960" "$r$d.sn960" } err ] } {
       tk_messageBox -title Scid -icon error -type ok -message "File copy error $err"
       return
     }
@@ -341,8 +341,8 @@ proc ::file::finder::copy { f } {
   }
   set dir [tk_chooseDirectory -initialdir [file dirname $f] -parent .finder]
   if {$dir != ""} {
-    if { [string tolower [file extension $f]] == ".si4" } {
-      if { [catch { file copy "[file rootname $f].sg4" "[file rootname $f].sn4" $dir } err ] } {
+    if { [string tolower [file extension $f]] == ".si960" } {
+      if { [catch { file copy "[file rootname $f].sg960" "[file rootname $f].sn960" $dir } err ] } {
         tk_messageBox -title Scid -icon error -type ok -message "File copy error $err" -parent .finder
         return
       }
@@ -367,9 +367,9 @@ proc ::file::finder::move { f } {
   }
   set dir [tk_chooseDirectory -initialdir [file dirname $f] -parent .finder ]
   if {$dir != ""} {
-    if { [string tolower [file extension $f]] == ".si4" } {
+    if { [string tolower [file extension $f]] == ".si960" } {
       
-      if { [catch { file rename "[file rootname $f].sg4" "[file rootname $f].sn4" $dir } err ] } {
+      if { [catch { file rename "[file rootname $f].sg960" "[file rootname $f].sn960" $dir } err ] } {
         tk_messageBox -title Scid -icon error -type ok -message "File rename error $err" -parent .finder
         return
       }
@@ -409,15 +409,15 @@ proc ::file::finder::rename { f } {
 
   set n "[file dirname $f]/$newname"
 
-  if { [string tolower [file extension $f]] == {.si4} } {
-    if {[file exists "$newname.si4"]} {
-      tk_messageBox -title Scid -icon error -type ok -message "$newname.si4 already exists" -parent .finder
+  if { [string tolower [file extension $f]] == {.si960} } {
+    if {[file exists "$newname.si960"]} {
+      tk_messageBox -title Scid -icon error -type ok -message "$newname.si960 already exists" -parent .finder
       return
     }
 
     if { [catch {
-	    file rename "$r.sg4" "$n.sg4"
-	    file rename "$r.sn4" "$n.sn4"
+	    file rename "$r.sg960" "$n.sg960"
+	    file rename "$r.sn960" "$n.sn960"
 	 } err ] } {
       tk_messageBox -title Scid -icon error -type ok -message "File copy error $err"
       return
@@ -482,8 +482,8 @@ proc ::file::finder::delete { f } {
   set answer [tk_messageBox -title Scid -icon warning -type yesno -parent .finder \
                 -message "Do you want to permanently delete $f ?"]
   if {$answer == "yes"} {
-    if { [string tolower [file extension $f]] == ".si4" } {
-      file delete "[file rootname $f].sg4" "[file rootname $f].sn4" "[file rootname $f].stc"
+    if { [string tolower [file extension $f]] == ".si960" } {
+      file delete "[file rootname $f].sg960" "[file rootname $f].sn960" "[file rootname $f].stc"
     }
     file delete $f
   }
@@ -531,10 +531,10 @@ proc ::file::finder::GetFiles {dir {len -1}} {
       set showFile 0
       set rootname [file rootname $f]
       set type PGN
-      if {$ext == ".si4"} {
+      if {$ext == ".si960"} {
         set showFile 1
         set type Scid
-      } elseif {$ext == ".si3"} {
+      } elseif {$ext == ".si4"} {
         set showFile 1
         set type Old
       } elseif {$ext == ".epd"} {

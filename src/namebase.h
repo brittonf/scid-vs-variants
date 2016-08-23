@@ -55,8 +55,7 @@ typedef uint caseFlagT;
 const caseFlagT
     CASE_SENSITIVE = 0,  CASE_INSENSITIVE = 1;
 
-// const char OLD_NAMEBASE_SUFFIX[] = ".sn3";
-const char NAMEBASE_SUFFIX[] = ".sn4";
+const char NAMEBASE_SUFFIX[] = ".sn960";
 
 const char NAMEBASE_MAGIC[8] = "Scid.sn";
 

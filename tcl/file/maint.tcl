@@ -12,7 +12,7 @@ namespace eval ::maint {}
 ################################################################################
 proc ::maint::fixCorruptedBase {} {
   set ftype {
-    { "Scid databases" {".si4"} }
+    { "Scid databases" {".si960"} }
   }
   set fName [tk_getOpenFile -initialdir $::initialDir(base) -filetypes $ftype -title "Open a Scid file"]
   if {$fName == ""} { return }

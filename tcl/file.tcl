@@ -87,8 +87,8 @@ proc ::file::New {} {
     return
   }
   set ftype {
-    { "Scid databases, EPD files" {".si4" ".epd"} }
-    { "Scid databases" {".si4"} }
+    { "Scid databases, EPD files" {".si960" ".epd"} }
+    { "Scid databases" {".si960"} }
     { "EPD files" {".epd"} }
   }
   if {! [file isdirectory $::initialDir(base)] } {
@@ -102,7 +102,7 @@ proc ::file::New {} {
       return
     }
   } else {
-    if {[file extension $fName] == ".si4"} {
+    if {[file extension $fName] == ".si960"} {
       set fName [file rootname $fName]
     } 
     if {[catch {sc_base create $fName} result]} {
@@ -112,7 +112,7 @@ proc ::file::New {} {
     }
     # set default icon
     catch {sc_base type [sc_base current] 1}
-    set fName $fName.si4
+    set fName $fName.si960
   }
   set ::glistFlipped([sc_base current]) 0
   ::recentFiles::add $fName
@@ -127,7 +127,6 @@ proc ::file::New {} {
 # But it is used everywhere, and will take some time to fix
 
 proc ::file::Open {{fName ""} {parent .} {update 1}} {
-
   if {[sc_base count free] == 0} {
     tk_messageBox -type ok -icon info -title "Scid" \
         -message "Too many databases are open; close one first" -parent $parent
@@ -136,15 +135,15 @@ proc ::file::Open {{fName ""} {parent .} {update 1}} {
 
   if {[sc_info gzip]} {
     set ftype {
-      { {All Scid files} {.si4 .si3 .pgn .PGN .pgn.gz .epd .epd.gz} }
-      { {Scid databases} {.si4 .si3} }
+      { {All Scid files} {.si960 .si4 .pgn .PGN .pgn.gz .epd .epd.gz} }
+      { {Scid databases} {.si960 .si4} }
       { {PGN files} {.pgn .PGN .pgn.gz} }
       { {EPD files} {.epd .EPD .epd.gz} }
     }
   } else {
     set ftype {
-      { {All Scid files} {.si4 .si3 .pgn .PGN .epd} }
-      { {Scid databases} {.si4 .si3} }
+      { {All Scid files} {.si960 .si4 .pgn .PGN .epd} }
+      { {Scid databases} {.si960 .si4} }
       { {PGN files} {.pgn .PGN} }
       { {EPD files} {.epd .EPD} }
     }
@@ -161,17 +160,17 @@ proc ::file::Open {{fName ""} {parent .} {update 1}} {
   setTrialMode 0 0
 
   set ext [file extension $fName]
-  if {$ext == "" || [file readable "$fName.si4"]} {
-    set fName "$fName.si4"
-    set ext .si4
+  if {$ext == "" || [file readable "$fName.si960"]} {
+    set fName "$fName.si960"
+    set ext .si960
   }
 
-  if {$ext == ".sg4" || $ext == ".sn4"} {
-    set fName "[file rootname $fName].si4"
-    set ext .si4
+  if {$ext == ".sg960" || $ext == ".sn960"} {
+    set fName "[file rootname $fName].si960"
+    set ext .si960
   }
 
-  if {$ext == ".si3" && [file exists $fName]} {
+  if {$ext == ".si4" && [file exists $fName]} {
     ::file::Upgrade [file rootname $fName]
     return
   }
@@ -192,7 +191,7 @@ proc ::file::Open {{fName ""} {parent .} {update 1}} {
   set err 0
   busyCursor .
 
-  if {$ext == ".si4"} {
+  if {$ext == ".si960"} {
     set fName [file rootname $fName]
     if {[catch {openBase $fName} result]} {
       set err 1
@@ -202,11 +201,11 @@ proc ::file::Open {{fName ""} {parent .} {update 1}} {
       unbusyCursor .
       tk_messageBox -icon warning -type ok -parent $parent \
           -title "Scid: Error opening file" -message "$result"
-      ::recentFiles::remove "$fName.si4"
+      ::recentFiles::remove "$fName.si960"
       return -1
     } else {
       set ::initialDir(base) [file dirname $fName]
-      ::recentFiles::add "$fName.si4"
+      ::recentFiles::add "$fName.si960"
     }
   } elseif {[string match "*.epd" [string tolower $fName]]} {
     # EPD file:
@@ -368,51 +367,45 @@ proc refreshSearchDBs {} {
 
 # ::file::Upgrade
 #
-#   Upgrades an old (version 3) Scid database to version 4.
+#   Upgrades an old (version 4) Scid database to version 960.
 #
 proc ::file::Upgrade {name} {
-  if {[file readable "$name.si4"]} {
+  if {[file readable "$name.si960"]} {
     set msg [string trim $::tr(ConfirmOpenNew)]
     set res [tk_messageBox -title "Scid" -type yesno -icon info -message $msg]
     if {$res == "no"} { return }
-    ::file::Open "$name.si4"
+    ::file::Open "$name.si960"
     return
   }
 
   set msg [string trim $::tr(ConfirmUpgrade)]
   set res [tk_messageBox -title "Scid" -type yesno -icon info -message $msg]
   if {$res == "no"} { return }
-  progressWindow "Scid" "$::tr(Upgrading): [file tail $name]"\
-      $::tr(Cancel) "sc_progressBar"
-  busyCursor .
-  update
   set err [catch {sc_base upgrade $name} res]
-  unbusyCursor .
-  closeProgressWindow
   if {$err} {
     tk_messageBox -title "Scid" -type ok -icon warning \
         -message "Unable to upgrade the database:\n$res"
     return
   } else  {
-    # rename game and name files, delete old .si3
-    file rename "$name.sg3"  "$name.sg4"
-    file rename "$name.sn3"  "$name.sn4"
-    file delete "$name.si3"
+    # rename game and name files, delete old .si4
+    file rename "$name.sg4"  "$name.sg960"
+    file rename "$name.sn4"  "$name.sn960"
+    file rename "$name.si4"  "$name.si960"
   }
-  ::file::Open "$name.si4"
+  ::file::Open "$name.si960"
 }
 
 # openBase:
 #    Opens a Scid database, showing a progress bar in a separate window
 #    if the database is around 5 Mb or larger in size.
-#   ::file::Open should be used if the base is not already in si4 format
+#   ::file::Open should be used if the base is not already in si960 format
 
 proc openBase {name} {
 
   # This check should probably be done somewhere else
   # But fixing issue/all scenarios is very painful , so leave it here steven!
-  if {![file exists $name.si4]} {
-    return -code error "File \"$name.si4\" doesn't exist."
+  if {![file exists $name.si960]} {
+    return -code error "File \"$name.si960\" doesn't exist."
   }
 
   # Depending on how file is opened, windows can have "\" file separators
@@ -426,8 +419,8 @@ proc openBase {name} {
   set bsize 0
 
   ### wrong i think
-  # set gfile "[file rootname $name].sg4" 
-  set gfile "$name.sg4"
+  # set gfile "[file rootname $name].sg960" 
+  set gfile "$name.sg960"
 
   if {! [catch {file size $gfile} err]} { set bsize $err }
   set showProgress 0
@@ -539,14 +532,14 @@ proc ::file::openBaseAsTree { { fName "" } } {
   if {$fName == ""} {
     if {[sc_info gzip]} {
       set ftype {
-        { "Scid databases, PGN files" {".si4" ".si3" ".pgn" ".PGN" ".pgn.gz"} }
-        { "Scid databases" {".si4" ".si3"} }
+        { "Scid databases, PGN files" {".si960" ".si4" ".pgn" ".PGN" ".pgn.gz"} }
+        { "Scid databases" {".si960" ".si4"} }
         { "PGN files" {".pgn" ".PGN" ".pgn.gz"} }
       }
     } else {
       set ftype {
-        { "Scid databases, PGN files" {".si4" ".si3" ".pgn" ".PGN"} }
-        { "Scid databases" {".si4" ".si3"} }
+        { "Scid databases, PGN files" {".si960" ".si4" ".pgn" ".PGN"} }
+        { "Scid databases" {".si960" ".si4"} }
         { "PGN files" {".pgn" ".PGN"} }
       }
     }
@@ -563,17 +556,17 @@ proc ::file::openBaseAsTree { { fName "" } } {
 
 
   if {[file extension $fName] == ""} {
-    set fName "$fName.si4"
+    set fName "$fName.si960"
   }
 
-  if {[file extension $fName] == ".si3" && [file exists $fName]} {
+  if {[file extension $fName] == ".si4" && [file exists $fName]} {
     ::file::Upgrade [file rootname $fName]
     return
   }
 
   ### Check it is not already open
   # Name handling is a little clumsy, but is tested
-  if {[file extension $fName] == ".si4"} {
+  if {[file extension $fName] == ".si960"} {
     set rName [file rootname $fName]
   } else {
     set rName $fName
@@ -587,7 +580,7 @@ proc ::file::openBaseAsTree { { fName "" } } {
 
   set err 0
   busyCursor .
-  if {[file extension $fName] == ".si4"} {
+  if {[file extension $fName] == ".si960"} {
     set fName [file rootname $fName]
     if {[catch {openBase $fName} result]} {
       unbusyCursor .
@@ -597,7 +590,7 @@ proc ::file::openBaseAsTree { { fName "" } } {
     } else {
       set ::initialDir(base) [file dirname $fName]
       set ::initialDir(file) [file tail $fName]
-      ::recentFiles::add "$fName.si4"
+      ::recentFiles::add "$fName.si960"
     }
   } else {
     # PGN file:
@@ -739,7 +732,7 @@ proc OpenUri {window uriFiles} {
       append message \n\n [join $rejectList \n]
     }
     set detail [tr UriRejectedDetail]
-    append detail " .sci, .si4, .si3, .cbh, .pgn, .pgn.gz, .zip"
+    append detail " .sci, .si960, .si4, .cbh, .pgn, .pgn.gz, .zip"
     tk_messageBox -icon info -type ok -parent . -message $message -detail $detail
   }
 

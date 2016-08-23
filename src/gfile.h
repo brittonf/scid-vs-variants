@@ -28,8 +28,7 @@
 #else
 #define GF_BLOCKSIZE  131072 //524288
 #endif
-// const char OLD_GFILE_SUFFIX [] = ".sg3";
-const char GFILE_SUFFIX [] = ".sg4";
+const char GFILE_SUFFIX [] = ".sg960";
 
 
 // The block structure type:

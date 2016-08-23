@@ -1446,7 +1446,7 @@ proc addAnnotation {tomove} {
     sc_game push copyfast
     set move1 [lindex $analysis(prevmoves$n) 0]
     sc_move back 1
-    sc_move_add $move1 $n
+    sc_moveAdd $move1 $n
     set move1 [sc_game info previousMoveNT]
     sc_game pop
 
@@ -1531,7 +1531,7 @@ if {abs($prevscore) < $annotate(cutoff) || abs($score) < $annotate(cutoff) || \
       sc_move back
       sc_var create
       set moves $analysis(prevmoves$n)
-      sc_move_add $moves $n
+      sc_moveAdd $moves $n
       set nag [ scoreToNag $prevscore ]
       if {$nag != {}} {
 	sc_pos addNag $nag
@@ -1576,7 +1576,7 @@ if {abs($prevscore) < $annotate(cutoff) || abs($score) < $annotate(cutoff) || \
 	sc_var create
 	set moves $analysis(prevmoves$n)
 	# Add as many moves as possible from the engine analysis:
-	sc_move_add $moves $n
+	sc_moveAdd $moves $n
 	set nag [ scoreToNag $prevscore ]
 	if {$nag != {}} {
 	  sc_pos addNag $nag
@@ -1751,12 +1751,12 @@ proc addAnalysisVariation {{n -1}} {
     if {$lastMove == {0000} } {
       sc_move addSan null
     } else {
-      sc_move_add $lastMove $n
+      sc_moveAdd $lastMove $n
     }
   }
 
   # Add as many moves as possible from the engine analysis:
-  if {[sc_move_add $moves $n]} {
+  if {[sc_moveAdd $moves $n]} {
     # Oops, add move failed
     if {$create_var} {
       sc_var exit
@@ -1844,11 +1844,11 @@ proc addAllVariations {{n 1} {rightclick 0}} {
       if {$lastMove == {0000} } {
 	sc_move addSan null
       } else {
-	sc_move_add $lastMove $n
+	sc_moveAdd $lastMove $n
       }
     }
     # Add as many moves as possible from the engine analysis:
-    sc_move_add $moves $n
+    sc_moveAdd $moves $n
     sc_var exit
 
     if {$addAtEnd} {
@@ -1905,7 +1905,7 @@ proc makeAnalysisMove {n} {
   }
 
   set analysis(automoveThinking$n) 0
-  if { [sc_move_add $move $n] } {
+  if { [sc_moveAdd $move $n] } {
     ### Move fail
     set res 0
     # puts "Error adding move $move"
@@ -3509,7 +3509,7 @@ proc updateAnalysisBoard {n moves} {
   sc_game push copyfast
 
   # Make the engine moves and update the board:
-  sc_move_add $moves $n
+  sc_moveAdd $moves $n
   ::board::update $bd [sc_pos board]
 
   # Pop the temporary game:
@@ -3895,7 +3895,7 @@ proc cancelAutomove {n} {
   global analysis
   set analysis(automove$n) 0
   after cancel "automove $n"
-  after cancel "automove_go $n"
+  after cancel "automoveGo $n"
 }
 
 proc automove {n} {
@@ -3903,10 +3903,10 @@ proc automove {n} {
   if {! $analysis(automove$n)} { return }
   after cancel "automove $n"
   set analysis(automoveThinking$n) 1
-  after $analysis(automoveTime$n) "automove_go $n"
+  after $analysis(automoveTime$n) "automoveGo $n"
 }
 
-proc automove_go {n} {
+proc automoveGo {n} {
   global analysis
   if {$analysis(automove$n)} {
     if {[makeAnalysisMove $n]} {
@@ -3921,32 +3921,16 @@ proc automove_go {n} {
 }
 
 
-################################################################################
-# If UCI engine, add move through a dedicated function in uci namespace
-# returns the error caught by catch
-################################################################################
-proc sc_move_add { moves n } {
+proc sc_moveAdd { moves n } {
   if { $::analysis(uci$n) } {
-    return [::uci::sc_move_add $moves]
+    return [ catch { sc_move addUCI $moves } ]
   } else  {
     return [ catch { sc_move addSan $moves } ]
   }
 }
 
-################################################################################
-# append scid directory if path starts with .
-################################################################################
-proc toAbsPath { path } {
-  set new $path
-  if {[string index $new 0] == {.} } {
-    set scidInstallDir [file dirname [info nameofexecutable] ]
-    set new [ string replace $new 0 0  $scidInstallDir ]
-  }
-  return $new
-}
-################################################################################
-#
-################################################################################
+### Analysis widget icons
+
 image create photo tb_cpu -data {
 R0lGODlhGAAYAOeiAAAAAAABAQECAgICAgIDAwUFBQYGBgYHCAgICDE1JzI1JzI2JzM3KDU5
 Kjg8LTk9Ljk9Lzo+MDs/MTtALDxAMj1AMjxCLTxCLj1BMj5CND9FMEJIMkNKM0VMNE5VPFFX

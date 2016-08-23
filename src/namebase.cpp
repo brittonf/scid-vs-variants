@@ -111,23 +111,6 @@ NameBase::OpenNameFile (const char * suffix)
     fileNameT fname;
     strcpy (fname, Fname);
     strcat (fname, suffix);
-#ifdef WINCE
-    //if ((FilePtr = fopen (fname, "rb")) == NULL) {
-    if ((FilePtr = my_Tcl_OpenFileChannel(NULL, fname, "r", 0666)) == 0) {
-        //Handle = Tcl_OpenFileChannel(NULL, name, modeStr, 0666);//fopen (name, modeStr);
-        return ERROR_FileOpen;
-    }
- my_Tcl_SetChannelOption(NULL, FilePtr, "-encoding", "binary");
- my_Tcl_SetChannelOption(NULL, FilePtr, "-translation", "binary");
-
-    readString(FilePtr, Header.magic, 8);
-    if (strcmp (Header.magic, NAMEBASE_MAGIC) != 0) {
-        my_Tcl_Close(NULL, FilePtr);//fclose (FilePtr);
-        FilePtr = NULL;
-        return ERROR_BadMagic;
-    }
-
-#else
 
     if ((FilePtr = fopen (fname, "rb")) == NULL) {
         return ERROR_FileOpen;
@@ -139,7 +122,7 @@ NameBase::OpenNameFile (const char * suffix)
         FilePtr = NULL;
         return ERROR_BadMagic;
     }
-#endif
+
     Header.timeStamp = readFourBytes (FilePtr);
     Header.numNames[NAME_PLAYER] = readThreeBytes (FilePtr);
     Header.numNames[NAME_EVENT] = readThreeBytes (FilePtr);

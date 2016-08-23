@@ -61,6 +61,7 @@ CharsetDetector::CharsetDetector()
   ,m_cp1252(0)
   ,m_latin1Detected(false)
   ,m_cp1252Detected(false)
+  ,m_cp850Detected(false)
 {
 }
 
@@ -82,40 +83,11 @@ void CharsetDetector::detect(char const* value, unsigned len)
 
   if (!::isAscii(value, len))
   {
-    HandleData(value, len);
     m_ascii = -1;
-
-    if (m_latin1 >= 0)
-    {
-      int weight = CharsetConverter::detectLatin1(value, len);
-
-      if (weight == -1)
-        m_latin1 = -1;
-      else
-        m_latin1 += weight;
-    }
-
-    if (m_cp850 >= 0)
-    {
-      int weight = CharsetConverter::detectCP850(value, len);
-
-      if (weight == -1)
-        m_cp850 = -1;
-      else
-        m_cp850 += weight;
-    }
-
-    if (m_cp1252 >= 0)
-    {
-      int weight = CharsetConverter::detectCP1252(value, len);
-
-      if (weight == -1)
-        m_cp1252 = -1;
-      else
-        m_cp1252 += weight;
-    }
+    HandleData(value, len);
   }
-  else if (m_latin1 >= 0)
+
+  if (m_latin1 >= 0)
   {
     int weight = CharsetConverter::detectLatin1(value, len);
 
@@ -123,6 +95,26 @@ void CharsetDetector::detect(char const* value, unsigned len)
       m_latin1 = -1;
     else
       m_latin1 += weight;
+  }
+
+  if (m_cp850 >= 0)
+  {
+    int weight = CharsetConverter::detectCP850(value, len);
+
+    if (weight == -1)
+      m_cp850 = -1;
+    else
+      m_cp850 += weight;
+  }
+
+  if (m_cp1252 >= 0)
+  {
+    int weight = CharsetConverter::detectCP1252(value, len);
+
+    if (weight == -1)
+      m_cp1252 = -1;
+    else
+      m_cp1252 += weight;
   }
 }
 
@@ -138,11 +130,18 @@ CharsetDetector::finish2()
     else if (m_cp850 >= 0)
     {
       if (m_cp1252 >= 0 && m_cp1252Detected)
+      {
         setup("cp1252");   // it's more likely Windoze
+      }
       else if (m_latin1 >= 0 && m_latin1Detected)
+      {
         setup("iso8859-1"); // it's more likely Latin-1
+      }
       else
+      {
         setup("cp850");
+        m_cp850Detected = true;
+      }
     }
 }
 
@@ -190,7 +189,8 @@ void CharsetDetector::detect(TextBuffer const& text_)
 
 void CharsetDetector::Report(char const* charset)
 {
-  m_info.setup(charset);
+  if (!m_latin1Detected && !m_cp1252Detected && !m_cp850Detected)
+    m_info.setup(charset);
 }
 
 //////////////////////////////////////////////////////////////////////

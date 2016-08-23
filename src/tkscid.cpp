@@ -1019,7 +1019,6 @@ sc_base_open (ClientData cd, Tcl_Interp * ti, int argc, const char ** argv)
         }
         return TCL_ERROR;
     }
-
     if (db->nb->ReadNameFile() != OK) {
         base_open_failure(oldBaseNum);
         return errorResult (ti, "Error opening name file.");
@@ -3224,115 +3223,10 @@ sc_base_tournaments (ClientData cd, Tcl_Interp * ti, int argc, const char ** arg
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // sc_base_upgrade:
-//    Upgrades an old (version 3.x, suffix .si3) Scid database
-//    to version 4 (suffix .si4).
+//    Stub, as si4 db format is unchanged to 9 (960)
 int
 sc_base_upgrade (ClientData cd, Tcl_Interp * ti, int argc, const char ** argv)
 {
-    bool showProgress = startProgressBar();
-
-    if (argc != 3) {
-        return errorResult (ti, "Usage: sc_base upgrade <old-database>");
-    }
-    const char * fname = argv[2];
-    Index * oldIndex = new Index;
-    Index * newIndex = new Index;
-
-    oldIndex->SetFileName (fname);
-    newIndex->SetFileName (fname);
-
-    if (newIndex->OpenIndexFile(FMODE_ReadOnly) == OK) {
-        newIndex->CloseIndexFile();
-        delete oldIndex;
-        delete newIndex;
-        return errorResult (ti, "An upgraded version of this database already exists.");
-    }
-
-    if (oldIndex->OpenOldIndexFile (FMODE_ReadOnly) != OK) {
-        delete oldIndex;
-        delete newIndex;
-        return errorResult (ti, "Error opening the old database.");
-    }
-
-    if (newIndex->CreateIndexFile (FMODE_WriteOnly) != OK) {
-        oldIndex->CloseIndexFile();
-        delete oldIndex;
-        delete newIndex;
-        return errorResult (ti, "Error creating the new dataabse.");
-    }
-
-    MFile * oldMFile = oldIndex->GetMFile();
-    MFile * newMFile = newIndex->GetMFile();
-
-    char buf[256];
-    // First copy the header with new version number
-
-    oldMFile->Seek(0);
-    newMFile->Seek(0);
-
-    oldMFile->ReadNBytes( buf, 8);
-    newMFile->WriteNBytes(buf, 8);
-
-    oldMFile->ReadTwoBytes();
-    newMFile->WriteTwoBytes(SCID_VERSION);
-
-    oldMFile->ReadNBytes(buf, 4 + 3 + 3 + SCID_DESC_LENGTH + 1);
-    newMFile->WriteNBytes(buf, 4 + 3 + 3 + SCID_DESC_LENGTH + 1);
-
-    // write the descriptions of the custom flags added with v4 version of base
-    memset( buf, 0, 256 );
-    newMFile->WriteNBytes( buf, CUSTOM_FLAG_MAX * ( CUSTOM_FLAG_DESC_LENGTH+1 ) );
-
-    // Now copy each index entry
-    uint i;
-    uint numGames = oldIndex->GetNumGames();
-    errorT err = OK;
-    uint updateStart = 250;
-    uint update = updateStart;
-
-    for (i=0; i < numGames; i++) {
-        if (showProgress) {
-            update--;
-            if (update == 0) {
-                update = updateStart;
-                if (interruptedProgress()) { break; }
-                updateProgressBar (ti, i, numGames);
-            }
-        }
-
-        oldMFile->ReadNBytes(buf, 4 + 2);
-        newMFile->WriteNBytes(buf, 4 + 2);
-
-        // insert one byte for Length_High and user bits
-        newMFile->WriteNBytes( "\0", 1 );
-
-        oldMFile->ReadNBytes(buf, 40 );
-        newMFile->WriteNBytes(buf, 40 );
-
-    }
-
-    oldIndex->CloseIndexFile();
-    newIndex->CloseIndexFile(true); // don't write again the header
-
-    if (err == OK  &&  !interruptedProgress()) {
-        if (err != OK) { setResult (ti, "Error writing name file"); }
-    }
-
-    delete oldIndex;
-    delete newIndex;
-
-    if (interruptedProgress()) {
-        removeFile (fname, INDEX_SUFFIX);
-        return errorResult (ti, "Upgrading was cancelled.");
-    }
-
-    if (err != OK) {
-        removeFile (fname, INDEX_SUFFIX);
-        return TCL_ERROR;
-    }
-
-    if (showProgress) { updateProgressBar (ti, 1, 1); }
-
     return TCL_OK;
 }
 
@@ -10128,7 +10022,7 @@ sc_move_addSan (ClientData cd, Tcl_Interp * ti, int argc, const char ** argv)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // sc_move_addUCI:
 //    Takes moves in engine UCI format (e.g. "g1f3") and adds them
-//    to the game. The result is translated.
+//    to the game. The result is no-longer translated.
 //    In case of an error, return the moves that could be converted.
 int
 sc_move_addUCI (ClientData cd, Tcl_Interp * ti, int argc, const char ** argv)
@@ -10138,6 +10032,16 @@ sc_move_addUCI (ClientData cd, Tcl_Interp * ti, int argc, const char ** argv)
     char * ptr = (char *) argv[2];
 
     while (*ptr != 0) {
+
+      // get rid of leading piece
+      switch (*ptr) {
+        case 'K' :
+        case 'Q' :
+        case 'R' :
+        case 'B' :
+        case 'N' : ptr++;
+      }
+
       s[0] = ptr[0];
       s[1] = ptr[1];
       s[2] = ptr[2];
@@ -10155,22 +10059,17 @@ sc_move_addUCI (ClientData cd, Tcl_Interp * ti, int argc, const char ** argv)
       }
       simpleMoveT sm;
       Position * pos = db->game->GetCurrentPos();
-      errorT err = pos->ReadCoordMove (&sm, s, true);
-      if (err == OK) {
-        err = db->game->AddMove (&sm, NULL);
-        if (err == OK) {
-            db->gameAltered = true;
-            db->game->GetPrevSAN (tmp);
-            transPieces(tmp);
-            Tcl_AppendResult (ti, tmp, " ", NULL);
-        } else {
-            //Tcl_AppendResult (ti, "Error reading move(s): ", ptr, NULL);
-            break;
-        }
-      } else {
-        //Tcl_AppendResult (ti, "Error reading move(s): ", ptr, NULL);
-        break;
-      }
+
+      if (pos->ReadCoordMove (&sm, s, true) != OK)
+        return TCL_ERROR;
+
+      if (db->game->AddMove (&sm, NULL) != OK)
+        return TCL_ERROR;
+
+      db->gameAltered = true;
+      db->game->GetPrevSAN (tmp);
+      // transPieces(tmp);
+      Tcl_AppendResult (ti, tmp, " ", NULL);
     }
 
     return TCL_OK;

@@ -151,22 +151,22 @@ static int8_t const CP1252Weight[256] =
   0, 0, 0, 0, 0, 0, 0, 0, // 70 ... 77
   0, 0, 0, 0, 0, 0, 0, 0, // 78 ... 7f
 
-  1, _, 0, 0, 0, 0, 0, 0, // 80 ... 87
+  1, _, 1, 1, 1, 1, 1, 1, // 80 ... 87
   0, 0, 1, 0, 1, _, 0, _, // 88 ... 8f
-  1, 0, 0, 0, 0, 0, 0, 0, // 90 ... 97
-  0, 0, 1, 0, 1, _, 1, 0, // 98 ... 9f
+  1, 1, 1, 1, 1, 0, 0, 0, // 90 ... 97
+  0, 1, 1, 0, 1, _, 1, 0, // 98 ... 9f
   0, 1, 5, 5, 5, 5, 5, 5, // a0 ... a7
-  0, 0, 0, 0, 0, 0, 0, 0, // a8 ... af
-  0, 2, 0, 0, 0, 0, 0, 0, // b0 ... b7
-  0, 0, 5, 1, 0, 1, 0, 2, // b8 ... bf
+  0, 1, 3, 1, 1, 1, 1, 1, // a8 ... af
+  1, 1, 1, 1, 0, 1, 0, 0, // b0 ... b7
+  0, 1, 1, 1, 0, 1, 0, 2, // b8 ... bf
   1, 1, 1, 2, 5, 2, 2, 1, // c0 ... c7
   2, 3, 1, 1, 1, 1, 1, 1, // c8 ... cf
-  0, 3, 2, 3, 1, 5, 5, 0, // d0 ... d7
+  0, 3, 2, 3, 1, 5, 5, 1, // d0 ... d7
   3, 1, 2, 1, 5, 1, 1, 5, // d8 ... df
   2, 3, 1, 1, 5, 3, 3, 1, // e0 ... e7
   2, 3, 1, 1, 1, 1, 1, 1, // e8 ... ef
-  0, 2, 1, 3, 1, 1, 5, 0, // f0 ... f7
-  3, 1, 3, 1, 5, 1, 0, 0, // f8 ... ff
+  0, 2, 1, 3, 1, 1, 5, 1, // f0 ... f7
+  3, 1, 3, 1, 5, 1, 1, 0, // f8 ... ff
 };
 
 static int8_t const Latin1Weight[256] =
@@ -636,50 +636,6 @@ CharsetConverter::isConvertibleToLatin1(char const* str)
 }
 
 
-std::string
-CharsetConverter::mapChessBaseFigurineToUTF8(const char* s)
-{
-  std::string str;
-
-  while (*s)
-  {
-    unsigned char c = *s;
-
-    if (c & 0x80)
-    {
-      unsigned charLen = ::utf8CharLength(s);
-      unsigned char d = s[1];
-
-      if (charLen == 2 && (0xc2 <= c && c <= 0xc3) && (0xa2 <= d && d <= 0xa7))
-      {
-        switch (d)
-        {
-          case 0xa2: ::appendThreeOctets(str, 0x2654); break; // King
-          case 0xa3: ::appendThreeOctets(str, 0x2655); break; // Queen
-          case 0xa4: ::appendThreeOctets(str, 0x2658); break; // Knight
-          case 0xa5: ::appendThreeOctets(str, 0x2657); break; // Bishop
-          case 0xa6: ::appendThreeOctets(str, 0x2656); break; // Rook
-          case 0xa7: ::appendThreeOctets(str, 0x2659); break; // Pawn
-        }
-      }
-      else
-      {
-        str.append(s, charLen);
-      }
-
-      s += charLen;
-    }
-    else
-    {
-      str += c;
-      s += 1;
-    }
-  }
-
-  return str;
-}
-
-
 bool
 CharsetConverter::validateUTF8(char const* str, unsigned len)
 {
@@ -856,23 +812,48 @@ CharsetConverter::cp1252ToUTF8(std::string const& in, std::string& out)
 
     if (c & 0x80)
     {
-      if (c < 0xa8)
-      {
-        // NOTE: this table maps the special ChessBase code 0x90 to 0x21bb.
-        static unsigned const CodeTable[128] =
-        {
-          0x20ac, 0xfffd, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, // 80 ... 87
-          0x02c6, 0x2030, 0x0160, 0x2039, 0x0152, 0xfffd, 0x017d, 0xfffd, // 88 ... 8f
-          0x21bb, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, // 90 ... 97
-          0x02dc, 0x2122, 0x0161, 0x203a, 0x0153, 0xfffd, 0x017e, 0x0178, // 98 ... 9f
-          0x02a0, 0x00a1, 0x2654, 0x2655, 0x2658, 0x2657, 0x2656, 0x2659, // a0 ... a7
-        };
+      // ChessBase is exporting his own special symbol set as Latin-1, it seems that
+      // this company is without a plan.
 
-        ::appendCodePointToUTF8String(out, CodeTable[c - 0x80]);
-      }
-      else // this is identical to Latin-1
+      static unsigned const CodeTable[128] =
       {
-        ::appendTwoOctets(out, c);
+        0x20ac, 0xfffd, 0x2192, 0x2191, 0x21c6, 0x25b3, 0x25ef, 0x2299, // 80 ... 87
+        0x02c6, 0x2030, 0x0160, 0x2039, 0x0152, 0xfffd, 0x017d, 0xfffd, // 88 ... 8f
+        0x21bb, 0x21d4, 0x21d7, 0x2295, 0x229e, 0x2022, 0x2013, 0x2014, // 90 ... 97
+        0x02dc, 0x25a1, 0x0161, 0x203a, 0x0153, 0xfffd, 0x0023, 0x0178, // 98 ... 9f
+        0x02a0, 0x00a1, 0x2654, 0x2655, 0x2658, 0x2657, 0x2656, 0x2659, // a0 ... a7
+             0,      1, 0x230a, 0x27ea, 0x22a5, 0x25eb, 0x25e8, 0x259e, // a8 ... af
+             1, 0x00b1, 0x2a72, 0x2a71,      0, 0x2213,      0,      0, // b0 ... b7
+             0, 0x2313, 0x230b, 0x27eb,      0,      0,      0,      0, // b8 ... bf
+             0,      0,      0,      0,      0,      0,      0,      0, // c0 ... c7
+             0,      0,      0,      0,      0,      0,      0,      0, // c8 ... cf
+             0,      0,      0,      0,      0,      0,      0, 0x2715, // d0 ... d7
+             0,      0,      0,      0,      0,      0,      0,      0, // da ... df
+             0,      0,      0,      0,      0,      0,      0,      0, // e0 ... d7
+             0,      0,      0,      0,      0,      0,      0,      0, // e8 ... ef
+             0,      0,      0,      0,      0,      0,      0, 0x221e, // f0 ... f7
+             0,      0,      0,      0,      0,      0, 0x26a8,      0, // f8 ... ff
+      };
+
+      switch (unsigned code = CodeTable[c - 0x80])
+      {
+        case 0:
+          // this should be identical to Latin-1
+          ::appendTwoOctets(out, c);
+          break;
+
+        case 1:
+          ASSERT(c == 0xa9 || c == 0xb0);
+          if (c == 0xa9)
+            out.append("=/");
+          ::appendCodePointToUTF8String(out, 0x221e);
+          if (c == 0xb0)
+            out.append("/=");
+          break;
+
+        default:
+          ::appendCodePointToUTF8String(out, code);
+          break;
       }
     }
     else
@@ -930,6 +911,8 @@ CharsetConverter::fixLatin1(std::string const& in, std::string& out)
 unsigned
 CharsetConverter::removeInvalidSequences(std::string& str, unsigned len, char const* replacement)
 {
+  typedef unsigned char Byte;
+
   ASSERT(len <= str.size());
 
   // remove overlong sequences:
@@ -955,14 +938,14 @@ CharsetConverter::removeInvalidSequences(std::string& str, unsigned len, char co
         break;
 
       case 2: // // 110bbbbb 10bbbbbb
-        if ((s[1] & 0xc0) != 0x80)      // invalid
+        if ((Byte(s[1]) & 0xc0) != 0x80)      // invalid
         {
           result.append(replacement);
           replaced += 1;
         }
-        else if ((s[0] & 0xfe) == 0xc0)  // overlong
+        else if ((Byte(s[0]) & 0xfe) == 0xc0) // overlong
         {
-          char buf[1] = { char(s[1] & 0x7f) };
+          char buf[1] = { char(Byte(s[1]) & 0x7f) };
           result.append(buf, 1);
         }
         else
@@ -974,23 +957,24 @@ CharsetConverter::removeInvalidSequences(std::string& str, unsigned len, char co
         break;
 
       case 3: // 1110bbbb 10bbbbbb 10bbbbbb
-        if ((s[1] & 0xc0) != 0x80 || (s[2] & 0xc0) != 0x80)    // invalid
+        if ((Byte(s[1]) & 0xc0) != 0x80 || (Byte(s[2]) & 0xc0) != 0x80)  // invalid
         {
           result.append(replacement);
           replaced += 1;
         }
-        else if (s[0] == 0xe0 && (s[1] & 0xe0) == 0x80)        // overlong
+        else if (Byte(s[0]) == 0xe0 && (Byte(s[1]) & 0xe0) == 0x80)      // overlong
         {
-          char buf[1] = { char(s[2] & 0x7f) };
+          char buf[1] = { char(Byte(s[2]) & 0x7f) };
           result.append(buf, 1);
         }
-        else if (s[0] == 0xed && (s[1] & 0xe0) == 0xa0)        // surrogate
+        else if (Byte(s[0]) == 0xed && (Byte(s[1]) & 0xe0) == 0xa0)      // surrogate
         {
           result.append(replacement);
           replaced += 1;
         }
-        else if (s[0] == 0xef && s[1] == 0xbf && (s[2] & 0xfe) == 0xbe)  // U+FFFE or U+FFFF
+        else if (Byte(s[0]) == 0xef && Byte(s[1]) == 0xbf && (Byte(s[2]) & 0xfe) == 0xbe)
         {
+          // U+FFFE or U+FFFF
           result.append(replacement);
           replaced += 1;
         }
@@ -1003,17 +987,18 @@ CharsetConverter::removeInvalidSequences(std::string& str, unsigned len, char co
         break;
 
       case 4: // 11110bbb 10bbbbbb 10bbbbbb 10bbbbbb
-        if ((s[1] & 0xc0) != 0x80 || (s[2] & 0xc0) != 0x80 || (s[3] & 0xc0) != 0x80)  // invalid
+        if ((Byte(s[1]) & 0xc0) != 0x80 || (Byte(s[2]) & 0xc0) != 0x80 || (Byte(s[3]) & 0xc0) != 0x80)
         {
+          // invalid
           result.append(replacement);
           replaced += 1;
         }
-        else if (s[0] == 0xf0 && (s[1] & 0xf0) == 0x80)  // overlong
+        else if (Byte(s[0]) == 0xf0 && (Byte(s[1]) & 0xf0) == 0x80)  // overlong
         {
-          char buf[1] = { char(s[3] & 0x7f) };
+          char buf[1] = { char(Byte(s[3]) & 0x7f) };
           result.append(buf, 1);
         }
-        else if ((s[0] == 0xf4 && s[1] > 0x8f) || s[0] > 0xf4)  // > U+10FFFF
+        else if ((Byte(s[0]) == 0xf4 && Byte(s[1]) > 0x8f) || Byte(s[0]) > 0xf4)  // > U+10FFFF
         {
           result.append(replacement);
           replaced += 1;
@@ -1255,66 +1240,73 @@ CharsetConverter::doConversion(Buffer& text)
 
   bool isUTF8 = validateUTF8(text.str(), text.size());
 
-  if (isUTF8 && m_wanted.isUTF8())
-    return true;
-
-  m_detector.reset();
-  m_detector.detect(text.str(), text.size());
-
-  if (   m_detector.isASCII() // the detector couldn't detect the character set
-      || (m_detector.isLatin1() && !validateLatin1(text.str(), text.size()))) // detection is wrong
+  if (isUTF8)
   {
-    // This may happen if:
-    // 1. The character set is CP850 or CP1252 encoded with single bytes.
-    // 2. The character set detection failed, sometimes this happens with Latin-1.
+    if (m_wanted.isUTF8())
+      return true;
+    m_detector.setup("utf-8");
+  }
+  else
+  {
+    m_detector.reset();
+    m_detector.detect(text.str(), text.size());
+    m_detector.finish();
 
-    int cp850  = detectCP850(text.str(), text.size());
-    int cp1252 = detectCP1252(text.str(), text.size());
-    int latin1 = detectLatin1(text.str(), text.size());
+    if (   m_detector.isASCII() // the detector couldn't detect the character set
+        || (m_detector.isLatin1() && !validateLatin1(text.str(), text.size()))) // detection is wrong
+    {
+      // This may happen if:
+      // 1. The character set is CP850 or CP1252 encoded with single bytes.
+      // 2. The character set detection failed, sometimes this happens with Latin-1.
 
-    if (latin1 >= 0 && latin1 >= cp1252 && latin1 >= cp850) // detection of Latin-1 failed
-    {
-      m_detector.setup("iso8859-1"); // but this seems to be Latin-1
-    }
-    else if (cp1252 > cp850) // most probably it's CP1252 (Windoze)
-    {
-      std::string src(text.str(), text.size());
-      std::string dst;
-      cp1252ToUTF8(src, dst);
-      text.replace(dst);
-      m_detector.setup("utf-8");
-    }
-    else if (cp850 >= 0) // probably it's CP850 (MSDOS)
-    {
-      std::string src(text.str(), text.size());
-      std::string dst;
-      cp850ToUTF8(src, dst);
-      text.replace(dst);
-      m_detector.setup("utf-8");
-    }
-    else if (m_detector.isLatin1()) // does not happen under Windoze
-    {
-      // ----------------------------------------------------------------------
-      // This part is a bit experimental, and should be removed if
-      // not successful in practice.
-      // ----------------------------------------------------------------------
-      std::string src(text.str(), text.size());
-      std::string dst;
+      int cp850  = detectCP850(text.str(), text.size());
+      int cp1252 = detectCP1252(text.str(), text.size());
+      int latin1 = detectLatin1(text.str(), text.size());
 
-      if (fixLatin1(src, dst))
+      if (latin1 >= 0 && latin1 >= cp1252 && latin1 >= cp850) // detection of Latin-1 failed
       {
-        // This was originally a Latin-1 string with invalid UTF-8 conversion,
-        // but we could restore the content. This happens often with Scid
-        // databases. (For example an import of a PGN file with UTF-8 encoded
-        // Latin-1 character set.)
+        m_detector.setup("iso8859-1"); // but this seems to be Latin-1
+      }
+      else if (cp1252 > cp850) // most probably it's CP1252 (Windoze)
+      {
+        std::string src(text.str(), text.size());
+        std::string dst;
+        cp1252ToUTF8(src, dst);
         text.replace(dst);
         m_detector.setup("utf-8");
       }
-    }
-    else
-    {
-      // The character set is unrecognizable, so convertToUTF8() will do
-      // the required conversions.
+      else if (cp850 >= 0) // probably it's CP850 (MSDOS)
+      {
+        std::string src(text.str(), text.size());
+        std::string dst;
+        cp850ToUTF8(src, dst);
+        text.replace(dst);
+        m_detector.setup("utf-8");
+      }
+      else if (m_detector.isLatin1()) // does not happen under Windoze
+      {
+        // ----------------------------------------------------------------------
+        // This part is a bit experimental, and should be removed if
+        // not successful in practice.
+        // ----------------------------------------------------------------------
+        std::string src(text.str(), text.size());
+        std::string dst;
+
+        if (fixLatin1(src, dst))
+        {
+          // This was originally a Latin-1 string with invalid UTF-8 conversion,
+          // but we could restore the content. This happens often with Scid
+          // databases. (For example an import of a PGN file with UTF-8 encoded
+          // Latin-1 character set.)
+          text.replace(dst);
+          m_detector.setup("utf-8");
+        }
+      }
+      else
+      {
+        // The character set is unrecognizable, so convertToUTF8() will do
+        // the required conversions.
+      }
     }
   }
 

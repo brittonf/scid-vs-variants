@@ -45,10 +45,10 @@ if {0} {
 
 if {![catch {tk windowingsystem} wsystem] && $wsystem == "aqua"} {
   set macOS 1
-  set scidName {Scid vs. Mac 360}
+  set scidName {Scid vs. Mac 960}
 } else {
   set macOS 0
-  set scidName {Scid vs. 360}
+  set scidName {Scid vs. 960}
 }
 
 # See if we're inside a Mac .app bundle.  This duplcates part of the command-line
@@ -287,7 +287,7 @@ if {$windowsOS} {
   # so choose something dumb
   set scidLogDir {C:\log}
 } else {
-  set scidUserDir [file nativename "~/.scidvspc"]
+  set scidUserDir [file nativename "~/.scidvs960"]
   set scidLogDir [file nativename [file join $scidUserDir "log"]]
 }
 
@@ -484,10 +484,8 @@ proc initFICSDefaults {} {
       set ::fics::user_buttons {FICSInfo FICSOpponent Abort}
       set ::fics::user_commands {
 	{::fics::writechan finger ; ::fics::writechan "inchannel $::fics::reallogin"}
-	{if {$::fics::opponent != {}} {
-	  ::fics::writechan "finger $::fics::opponent"
-	}}
-	{::fics::writechan abort}
+	{if {$::fics::opponent != {}} { ::fics::writechan "finger $::fics::opponent" }}
+	{::fics::writechan "abort"}
       }
     }
 
@@ -1411,8 +1409,8 @@ if { $macOS } {
       if {$ext == ".sg4" || $ext == ".sn4"} {
         set file "[file rootname $file].si4"
       }
-      if {$ext == ".sg3" || $ext == ".sn3"} {
-        set file "[file rootname $file].si3"
+      if {$ext == ".sg960" || $ext == ".sn960"} {
+        set file "[file rootname $file].si960"
       }
 
       # Check if base is already opened
@@ -1873,7 +1871,8 @@ proc ::splash::add {text {tag {indent}}} {
 ::splash::add "$::scidName $::scidVersion ($::scidVersionDate)."
 ::splash::add "http://scidvspc.sourceforge.net"
 ::splash::add ""
-::splash::add "(C) Steven Atkinson (stevenaaus@yahoo.com) 2008-2016"
+::splash::add "(C) Britton Farrar (brittonfarrar@gmail.com) 2016"
+::splash::add "(C) Steven Atkinson 2008-2016"
 ::splash::add "(C) Pascal Georges 2006-2008"
 ::splash::add "(C) Shane Hudson 1999-2004"
 ::splash::add "(C) Gregor Cramer, Fulvio Benini and others."

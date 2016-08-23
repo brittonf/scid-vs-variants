@@ -2432,8 +2432,8 @@ Position::MakeUCIString (simpleMoveT * m, char * s)
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Position::ReadCoordMove():
-//      Given a non-promotion move in coordinate notation,
-//      e.g. "e2e4" or "g1f3", generates the legal move it represents.
+//      Given a move in coordinate notation,
+//      e.g. "e2e4" or "g7g8q", generates the legal move it represents.
 //      Returns: OK or ERROR_InvalidMove.
 //      If "reverse" is true, coordinates in reverse order are acceptable,
 //      e.g. "f3g1" for 1.Nf3.

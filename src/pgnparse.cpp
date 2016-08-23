@@ -1317,9 +1317,7 @@ PgnParser::ParseGame (Game * game)
     {
         CharDetector->finish();
 
-        if (CharDetector->charset() == CharsetDetector::UTF8)
-            MapChessBaseFigurine(game);
-        else
+        if (CharDetector->charset() != CharsetDetector::UTF8)
             DoCharsetConversion(game);
 
         CharDetector->reset();
@@ -1376,23 +1374,6 @@ static Pair GetSetTbl[5] =
   Pair(&Game::GetBlackStr, &Game::SetBlackStr ),
   Pair(&Game::GetRoundStr, &Game::SetRoundStr ),
 };
-
-
-void
-PgnParser::MapChessBaseFigurine(Game * game)
-{
-    // Convert standard tags.
-
-    for (unsigned i = 0; i < sizeof(::GetSetTbl)/sizeof(::GetSetTbl[0]); ++i)
-    {
-        Pair const& p = ::GetSetTbl[i];
-
-        char * str((game->*p.getter)());
-
-        if (!CharsetConverter::isAscii(str))
-            (game->*p.setter)(CharsetConverter::mapChessBaseFigurineToUTF8(str).c_str());
-    }
-}
 
 
 void

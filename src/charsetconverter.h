@@ -148,9 +148,6 @@ public:
   // Try to fix an UTF8-8 string which was originally Latin-1 before conversion to UTF-8.
   static bool fixLatin1(std::string const& in, std::string& out);
 
-  // Map ChessBase figurine (inside UTF-8 string) to UTF-8.
-  static std::string mapChessBaseFigurineToUTF8(const char * s);
-
 private:
 
   typedef CharsetDetector::Info Info;
@@ -184,7 +181,7 @@ private:
     ImplMap m_implMap;
   };
 
-  class Buffer;
+  struct Buffer;
 
   bool doConversion(Buffer& text);
 

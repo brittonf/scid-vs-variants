@@ -1769,7 +1769,7 @@ proc autoplay {} {
       sc_var create
       sc_move addSan $move_done
       sc_pos setComment "[sc_pos getComment] $text"
-      sc_move_add $moves $n
+      sc_moveAdd $moves $n
       # exit var and move to end
       sc_move end
       updateBoard -pgn
@@ -1920,6 +1920,8 @@ proc setTrialMode {mode {updateBoard 1}} {
   }
 }
 
+### These few procs are used by tacgame/etc/analysis
+
 ### Pause UCI and Phalanx games when an out of order move is made
 
 proc pauseGame {args} {
@@ -1975,5 +1977,16 @@ proc checkRepetition {} {
   }
 
   return 0
+}
+
+### If path starts with '.' ,  replace it with Scid directory
+
+proc toAbsPath { path } {
+  if {[string index $path 0] != "." } {
+    return $path
+  } else {
+    set scidInstallDir [file dirname [info nameofexecutable]]
+    return [string replace $path 0 0  $scidInstallDir]
+  }
 }
 

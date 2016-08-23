@@ -1354,14 +1354,12 @@ translate E SoundsAnnounceBack {Announce when moving back}
 # Upgrading databases:
 translate E Upgrading {Upgrading}
 translate E ConfirmOpenNew {
-This is an old-format (si3) database that cannot be opened in Scid 4.0, but a new-format (si4) version has already been created.
+This is an old-format (si4) database, but a new-format (si960) version has already been created.
 
 Do you want to open the new-format version of the database?
 }
 translate E ConfirmUpgrade {
-This is an "si3" format database. It must be converted to "si4" before it can be used in Scid vs. PC 4.0.
-
-This process is irreversible and only needs to be done once. You can cancel if it takes too long.
+This is an "si4" format database. It must be renamed to "si960" before being used Scid vs. 960.
 
 Do you want to upgrade this database now?
 }

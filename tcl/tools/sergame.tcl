@@ -759,7 +759,7 @@ namespace eval sergame {
       return
     }
 
-    ::uci::sc_move_add $::uci::uciInfo(bestmove$n)
+    ::uci::addUCIMoves $::uci::uciInfo(bestmove$n)
     ::utils::sound::AnnounceNewMove $::uci::uciInfo(bestmove$n)
     set ::uci::uciInfo(prevscore$n) $::uci::uciInfo(score$n)
     updateBoard -pgn -animate

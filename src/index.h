@@ -30,8 +30,8 @@
 //////////////////////////////////////////////////////////////////////
 //  Index:  Constants
 
-const char         INDEX_SUFFIX[]     = ".si4";
-const char         OLD_INDEX_SUFFIX[] = ".si3";
+const char         INDEX_SUFFIX[]     = ".si960";
+const char         OLD_INDEX_SUFFIX[] = ".si4";
 const char         INDEX_MAGIC[8]     = "Scid.si";
 const gameNumberT  MAX_GAMES          = 16777214;
 // max. number of games is 2^(3*8)-1-1,

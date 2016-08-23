@@ -1,3 +1,7 @@
+### start of edit.tcl
+
+set defaultFen {rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1}
+
 proc fenErrorDialog {{msg {}}} {
 
   if {[winfo exists .setup]} {
@@ -305,16 +309,22 @@ proc exitSetupBoard {} {
 
   set setupFen [validateFEN $setupFen]
 
-  if {[catch {sc_game startBoard $setupFen} err]} {
-    fenErrorDialog $err
-    bind .setup <Destroy> cancelSetupBoard
-
-    # Ideally, "$err" should be more specific than "Invalid FEN", but
-    # procedural flow is a little complicated S.A.
-  } else {
-    ::utils::history::AddEntry setupFen $setupFen
+  if {$setupFen == $::defaultFen} {
+    sc_game new
     destroy .setup
     updateBoard -pgn
+  } else {
+    if {[catch {sc_game startBoard $setupFen} err]} {
+      fenErrorDialog $err
+      bind .setup <Destroy> cancelSetupBoard
+
+      # Ideally, "$err" should be more specific than "Invalid FEN", but
+      # procedural flow is a little complicated S.A.
+    } else {
+      ::utils::history::AddEntry setupFen $setupFen
+      destroy .setup
+      updateBoard -pgn
+    }
   }
 }
 
@@ -454,7 +464,9 @@ proc setupBoard {} {
   set setupBd [sc_pos board]
 
   sc_game new
-  sc_game startBoard $origFen
+  if {$origFen != $::defaultFen} {
+    sc_game startBoard $origFen
+  }
 
   updateBoard -pgn
 
@@ -811,3 +823,4 @@ proc setBoard {w boardStr psize} {
   }
 }
 
+### end of edit.tcl

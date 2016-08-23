@@ -233,7 +233,7 @@ proc ::bookmarks::Go {entry} {
     if {$success == -1} {
       return
     }
-    ::recentFiles::add "[file rootname $fname].si4"
+    ::recentFiles::add "[file rootname $fname].si960"
   }
   # Find and load the best database game matching the bookmark:
   set white [lindex $entry 5]

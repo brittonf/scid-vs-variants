@@ -2627,12 +2627,14 @@ puts "HMMMM \n$fen \n[sc_pos fen]"
       set f $w.f$i
       frame $f
       entry $f.button -width 8
-      entry $f.command -width 30
+      entry $f.command -width 40
       $f.button insert 0 [lindex $::fics::user_buttons $i]
       $f.command insert 0 [lindex $::fics::user_commands $i]
       pack $f -side top -fill both -expand yes
-      pack $f.button $f.command -side left -fill x -expand yes
+      pack $f.button $f.command -side left -fill x -expand yes -pady 3 -padx 3
     }
+
+    addHorizontalRule $w
 
     frame $w.b
     pack $w.b -side bottom 
@@ -2677,6 +2679,7 @@ puts "HMMMM \n$fen \n[sc_pos fen]"
     } else {
       placeWinOverParent $w .
     }
+    bind $w <F1> {helpWindow FICSwidget}
     wm state $w normal
     update
   }
@@ -2697,6 +2700,8 @@ puts "HMMMM \n$fen \n[sc_pos fen]"
       $w.text insert end "$name\n"
     }
     pack $w.text -side top -fill both -expand yes
+
+    addHorizontalRule $w
 
     frame $w.b
     pack $w.b -side bottom 
@@ -2726,6 +2731,7 @@ set seek 0"
     } else {
       placeWinOverParent $w .
     }
+    bind $w <F1> {helpWindow FICSwidget}
     wm state $w normal
     update
   }

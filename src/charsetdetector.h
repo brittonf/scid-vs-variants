@@ -108,6 +108,7 @@ private:
   int   m_cp1252;
   bool  m_latin1Detected;
   bool  m_cp1252Detected;
+  bool  m_cp850Detected;
 };
 
 

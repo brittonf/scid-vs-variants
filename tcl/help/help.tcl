@@ -4300,6 +4300,8 @@ set helpText(Related) {<h1>Links</h1>
   <li>Project page  <url http://sourceforge.net/projects/scidvspc>http://sourceforge.net/projects/scidvspc</url></li>
   <li>Online documentation <url http://scidvspc.sourceforge.net/doc/Contents.htm>http://scidvspc.sourceforge.net/doc/Contents.htm</url></li>
   <br>
+  <li>Chess 960 Essay <url http://www.dwheeler.com/essays/Fischer_Random_Chess.html>http://www.dwheeler.com/essays/Fischer_Random_Chess.html</url></li>
+  <br>
   <li>Millbase database <url http://katar.weebly.com/index.html>http://katar.weebly.com/index.html</url></li>
   <li>Player Information resources  <url http://sourceforge.net/projects/scid/files/Player Data/>http://sourceforge.net/projects/scid/files/Player Data/</url></li>
   <li>FICS <url http://www.freechess.org>www.freechess.org</url></li>
@@ -5636,9 +5638,14 @@ By default they are LimeGreen and grey35.
 </p>
 <h4>FICS Options</h4>
 <p>
-There are a few options in a right-click menu. 'No Requests'
+Right-clicking posts a menu with several options. 'No Requests'
 denies Takebacks, Adjournment, Abort and Draw requests. 'No Results' prevents game results
-dialogs. 'Board Size' refers to the small Observed Game boards.
+dialogs. 'Board Size' refers to the small Observed Game boards. Autoraise raises the main board
+when your opponent makes a move.
+</p>
+<p>
+There are also options to configure initialisation commands and to customize the top three buttons.
+This latter option requires a smidgin of tcl programming ;<gt>, and fics commands should probably be enclosed in quotes.
 </p>
 
   <h3>Buttons</h3>

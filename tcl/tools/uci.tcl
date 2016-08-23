@@ -977,50 +977,20 @@ namespace eval uci {
     catch { close $pipe }
     set uciInfo(pipe$n) ""
   }
-  ################################################################################
-  # UCI moves use long notation
-  # returns 1 if an error occured when entering a move
-  ################################################################################
-  proc sc_move_add { moves } {
 
-    foreach m $moves {
-      # get rid of leading piece
-      set c [string index $m 0]
-      if {$c in {K Q R B N}} {
-        set m [string range $m 1 end]
-      }
-      set s1 [string range $m 0 1]
-      set s1 [::board::sq $s1]
-      set s2 [string range $m 2 3]
-      set s2 [::board::sq $s2]
-      if {[string length $m] > 4} {
-        set promo [string range $m 4 end]
-        # inverse transformation : const char PIECE_CHAR [] = "xKQRBNP.xkqrbnpxMm";
-        # it seems capitalisation does not matter (see addMove proc in main.tcl)
+  ### UCI moves use long notation
+  ### returns 1 if an error occured when entering a move
+  # This procedure was previously ::uci::sc_move_add, and is now done in tkscid
 
-        ### Hmmm... generates "Promo error Q for moves a7a8Q" error
-        # from the analysis addvar routine, so better lowercase it. S.A
+  proc addUCIMoves { moves } {
 
-        switch -- [string tolower $promo] {
-          q { set p 2}
-          r { set p 3}
-          b { set p 4}
-          n { set p 5}
-          default {puts "Promo error $promo for moves $moves"}
-        }
-        if { [catch { sc_move add $s1 $s2 $p } ] } { return 1 }
-      } else  {
-        if { [catch { sc_move add $s1 $s2 0 } ] } { return 1 }
-      }
-    }
-    return 0
+    return [ catch { sc_move addUCI $moves } ]
+
   }
+
   ################################################################################
   #make UCI output more readable (b1c3 -> Nc3)
   ################################################################################
-
-  # This is done by pushing game, then adding moves to game one at a time and getting the converted string
-  # surely this is crap ? S.A. todo: improve
 
   # uci.tcl calls this for "none". calvar.tcl cals this for "$fen" or ""
 
@@ -1044,12 +1014,7 @@ namespace eval uci {
       sc_game startBoard $fen
     }
 
-    set tmp ""
-    foreach m $moves {
-      if { [sc_move_add $m] == 1 } { break }
-      set prev [sc_game info previousMoveNT]
-      append tmp " $prev"
-    }
+    catch {sc_move addUCI $moves} tmp
     set tmp [string trim $tmp]
 
     # Pop the temporary game:
@@ -1065,14 +1030,7 @@ namespace eval uci {
       sc_game push copyfast
       sc_move addSan $played_moves
       
-      set tmp ""
-      foreach m $moves {
-	  if { [sc_move_add $m] == 1 } {
-	      break
-	  }
-	  set prev [sc_game info previousMoveNT]
-	  append tmp " $prev"
-      }
+      catch {sc_move addUCI $moves} tmp
       set tmp [string trim $tmp]
       
       # Pop the temporary game:
